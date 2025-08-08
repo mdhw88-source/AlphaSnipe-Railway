@@ -79,7 +79,7 @@ Ensure these are set in Render dashboard Environment section:
 **2. Service Configuration**
 - Runtime: `Python 3.12.6` (set via runtime.txt)
 - Build Command: `pip install -r requirements.txt && pip install gunicorn PyNaCl==1.5.0`
-- Start Command: `python main.py`
+- Start Command: `gunicorn app:app --host 0.0.0.0 --port $PORT`
 
 **3. Database Setup**
 - Add PostgreSQL addon in Render dashboard

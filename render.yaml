@@ -3,7 +3,7 @@ services:
     name: alpha-sniper-bot
     env: python
     buildCommand: pip install -r requirements.txt && pip install gunicorn PyNaCl==1.5.0
-    startCommand: python main.py
+    startCommand: gunicorn app:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: DISCORD_TOKEN
         sync: false
