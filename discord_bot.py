@@ -83,6 +83,9 @@ async def scanner_loop():
                     pump_link = ""
                     chain_emoji = "🔗"
                 
+                # Add paper trading suggestion
+                paper_trade_msg = f"\n\n💡 **Paper Trade**: `!enter {hit['token']} 1000` ($1000 position)"
+                
                 text = (
                     f"🚨 **{chain_emoji} {chain} RUNNER ALERT** 🚨\n\n"
                     f"🎯 **{hit['name']}** (${hit['symbol']})\n"
@@ -98,7 +101,7 @@ async def scanner_loop():
                     f"• {explorer_link}\n"
                     f"{pump_link}\n"
                     f"**Chain:** {chain}\n"
-                    f"**Why This Matters:** Fresh {chain.lower()} token with runner characteristics detected by multi-source analysis"
+                    f"**Why This Matters:** Fresh {chain.lower()} token with runner characteristics detected by multi-source analysis{paper_trade_msg}"
                 )
                 if ch: 
                     await ch.send(text)
@@ -219,6 +222,78 @@ async def scan(ctx):
             await ctx.send(f"{chain} error: {e}")
 
     await ctx.send(f"🔎 Raw scan returned {total} pairs")
+
+# Paper Trading Commands
+@bot.command(name='enter')
+async def paper_enter(ctx, token_address: str = None, size: str = None):
+    """Enter a paper trading position: !enter <token_address> <size_usd>"""
+    from paper_trading import paper_engine
+    
+    if not token_address or not size:
+        await ctx.send("Usage: `!enter <token_address> <size_usd>`")
+        return
+    
+    try:
+        size_usd = float(size)
+        # Determine chain based on token address length (rough heuristic)
+        chain = "ethereum" if len(token_address) == 42 and token_address.startswith("0x") else "solana"
+        symbol = token_address[:8] + "..." if len(token_address) > 8 else token_address
+        
+        result = paper_engine.enter_position(token_address, symbol, chain, size_usd)
+        await ctx.send(result["message"])
+    except ValueError:
+        await ctx.send("Invalid size amount")
+    except Exception as e:
+        await ctx.send(f"Error entering position: {e}")
+
+@bot.command(name='exit')
+async def paper_exit(ctx, token_identifier: str = None):
+    """Exit a paper trading position: !exit <token_address_or_symbol>"""
+    from paper_trading import paper_engine
+    
+    if not token_identifier:
+        await ctx.send("Usage: `!exit <token_address_or_symbol>`")
+        return
+    
+    try:
+        result = paper_engine.exit_position(token_identifier)
+        await ctx.send(result["message"])
+    except Exception as e:
+        await ctx.send(f"Error exiting position: {e}")
+
+@bot.command(name='pnl')
+async def paper_pnl(ctx):
+    """Show paper trading P/L summary: !pnl"""
+    from paper_trading import paper_engine
+    
+    try:
+        summary = paper_engine.get_pnl_summary()
+        
+        response = f"📊 **Paper Trading Summary**\n\n"
+        response += f"💰 **P/L Overview**\n"
+        response += f"• Open P/L: ${summary['open_pnl']:+.2f}\n"
+        response += f"• Closed P/L: ${summary['closed_pnl']:+.2f}\n"
+        response += f"• **Total P/L: ${summary['total_pnl']:+.2f}**\n\n"
+        
+        response += f"📈 **Stats**\n"
+        response += f"• Open Positions: {summary['open_positions']}\n"
+        response += f"• Closed Trades: {summary['closed_positions']}\n"
+        response += f"• Win Rate: {summary['win_rate']:.1f}%\n"
+        
+        if summary['open_positions_data']:
+            response += f"\n🔓 **Open Positions**\n"
+            for pos in summary['open_positions_data']:
+                response += f"• {pos['symbol']} ({pos['chain']}): {pos['pnl_percent']:+.2f}% (${pos['pnl_usd']:+.2f})\n"
+        
+        if summary['recent_closed']:
+            response += f"\n📝 **Recent Closed**\n"
+            for pos in summary['recent_closed']:
+                response += f"• {pos.token_symbol}: {pos.pnl_percent:+.2f}% (${pos.pnl_usd:+.2f})\n"
+        
+        await ctx.send(response)
+        
+    except Exception as e:
+        await ctx.send(f"Error getting P/L summary: {e}")
 
 def get_bot_instance():
     """Get the bot instance for use in Flask routes"""
