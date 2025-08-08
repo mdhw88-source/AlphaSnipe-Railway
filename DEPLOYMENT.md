@@ -110,6 +110,19 @@ pip install -r requirements.txt && pip install gunicorn && pip install PyNaCl[vo
 **Alternative - Disable Voice Features:**
 Your bot doesn't use voice, so this error won't affect functionality. The text-based alerts will work perfectly.
 
+**Render Deployment Status:**
+If deployment still fails after adding PyNaCl, try these additional steps:
+
+1. **Force Clear Cache:** In Render dashboard, go to Settings → Clear Build Cache
+2. **Alternative Build Command:** 
+   ```bash
+   pip install --upgrade pip && pip install -r requirements.txt && pip install gunicorn PyNaCl
+   ```
+3. **Check Environment Variables:** Ensure DISCORD_TOKEN and DISCORD_CHANNEL_ID are set
+4. **Monitor Logs:** Watch for successful "Starting server on 0.0.0.0:PORT" message
+
+Your bot is working perfectly on Replit - the Discord connection, scanning, and alerts are all functional. The Render deployment just needs the audio dependencies resolved.
+
 ## Environment Variables Details
 
 ### Required
