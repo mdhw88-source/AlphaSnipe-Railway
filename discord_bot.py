@@ -9,6 +9,22 @@ CHAN_ENV = os.getenv("DISCORD_CHANNEL_ID") or os.getenv("CHANNEL_ID")
 WEBHOOK_URL = os.getenv("WEBHOOK_URL", "")
 
 def n(x): return "✅" if x else "❌"
+
+async def scanner_loop():
+    """Background task to scan for crypto opportunities"""
+    await bot.wait_until_ready()
+    print("[diag] Scanner loop started")
+    
+    while not bot.is_closed():
+        try:
+            # This is where you would implement your crypto scanning logic
+            # For now, it's a placeholder that doesn't send alerts
+            print("[diag] Scanner loop iteration (no alerts to send)")
+            
+        except Exception as e:
+            print(f"[diag] Scanner loop error: {e}")
+        
+        await asyncio.sleep(60)  # Wait 60 seconds before next scan
 print(f"[diag] TOKEN present: {n(bool(TOKEN))}")
 print(f"[diag] CHANNEL env (DISCORD_CHANNEL_ID or CHANNEL_ID) present: {n(bool(CHAN_ENV))}")
 print(f"[diag] WEBHOOK_URL present: {n(bool(WEBHOOK_URL))}")
@@ -32,6 +48,9 @@ async def on_ready():
     from datetime import datetime
     print(f"[diag] Logged in as {bot.user} (id: {bot.user.id})")
     print(f"[diag] guilds: {[g.name for g in bot.guilds]}")
+    
+    # Start scanner loop
+    bot.loop.create_task(scanner_loop())
     
     # Bot is ready and connected
     
