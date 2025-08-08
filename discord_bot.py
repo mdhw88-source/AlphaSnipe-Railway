@@ -507,6 +507,70 @@ async def enhanced_analyze(ctx, token_address: str = None, chain: str = "auto"):
     except Exception as e:
         await ctx.send(f"Error analyzing token: {e}")
 
+# Whale Tracking Commands
+@bot.command(name='whale')
+async def whale_management(ctx, action: str = None, chain: str = None, address: str = None):
+    """Whale tracking: !whale [add|remove|list] [ethereum|solana] [address]"""
+    from whale_tracker import add_whale_address, remove_whale_address, whale_tracker
+    
+    if not action:
+        await ctx.send("Usage: `!whale [add|remove|list] [ethereum|solana] [address]`\n"
+                      "Examples:\n"
+                      "`!whale add ethereum 0x742d35Cc6634C0532925a3b8D1E5d9E4C42d31E`\n"
+                      "`!whale list ethereum`\n"
+                      "`!whale remove solana 7VmWs8w...`")
+        return
+    
+    try:
+        if action.lower() == "list":
+            if not chain:
+                await ctx.send("Please specify chain: `!whale list [ethereum|solana]`")
+                return
+            
+            if chain.lower() == "ethereum":
+                whales = whale_tracker.get_eth_whales()
+                if whales:
+                    whale_list = "\n".join([f"• `{addr[:8]}...{addr[-6:]}`" for addr in whales[:20]])
+                    await ctx.send(f"🐋 **Ethereum Whales Tracked** ({len(whales)} total)\n{whale_list}")
+                else:
+                    await ctx.send("No Ethereum whale addresses tracked")
+            
+            elif chain.lower() == "solana":
+                whales = whale_tracker.get_sol_whales()
+                if whales:
+                    whale_list = "\n".join([f"• `{addr[:8]}...{addr[-6:]}`" for addr in whales[:20]])
+                    await ctx.send(f"🐋 **Solana Whales Tracked** ({len(whales)} total)\n{whale_list}")
+                else:
+                    await ctx.send("No Solana whale addresses tracked")
+            
+        elif action.lower() == "add":
+            if not chain or not address:
+                await ctx.send("Usage: `!whale add [ethereum|solana] <address>`")
+                return
+            
+            success = add_whale_address(chain.lower(), address)
+            if success:
+                await ctx.send(f"✅ Added {chain.lower()} whale address `{address[:8]}...{address[-6:]}`")
+            else:
+                await ctx.send(f"❌ Address already tracked or invalid format")
+        
+        elif action.lower() == "remove":
+            if not chain or not address:
+                await ctx.send("Usage: `!whale remove [ethereum|solana] <address>`")
+                return
+            
+            success = remove_whale_address(chain.lower(), address)
+            if success:
+                await ctx.send(f"✅ Removed {chain.lower()} whale address `{address[:8]}...{address[-6:]}`")
+            else:
+                await ctx.send(f"❌ Address not found in tracking list")
+        
+        else:
+            await ctx.send("Invalid action. Use: `add`, `remove`, or `list`")
+    
+    except Exception as e:
+        await ctx.send(f"Error managing whale addresses: {e}")
+
 @bot.event
 async def on_reaction_add(reaction, user):
     """Track reactions on runner alert messages"""
