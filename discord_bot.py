@@ -623,6 +623,21 @@ def _save_eth(s):
     try: json.dump(list(s), open(WHALES_ETH_FILE, "w"))
     except: pass
 
+# Solana whale management helpers
+WHALES_SOL_FILE = "whales_sol.json"
+
+def _load_sol():
+    try: 
+        return set(json.load(open(WHALES_SOL_FILE)))
+    except: 
+        return set()
+
+def _save_sol(s):
+    try: 
+        json.dump(list(s), open(WHALES_SOL_FILE, "w"))
+    except: 
+        pass
+
 @bot.command()
 async def whaleadd(ctx, addr: str):
     """Quick add ETH whale: !whaleadd 0x123..."""
@@ -644,6 +659,29 @@ async def whalelist(ctx):
         await ctx.send(f"🐋 **ETH Whales Tracked** ({len(s)} total):\n{whale_list}")
     else:
         await ctx.send("No ETH whales tracked yet.")
+
+# Solana whale management commands
+@bot.command()
+async def swhaleadd(ctx, addr: str):
+    """Quick add SOL whale: !swhaleadd 9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM"""
+    s = _load_sol(); s.add(addr); _save_sol(s)
+    await ctx.send(f"✅ Added SOL whale: `{addr}`")
+
+@bot.command()
+async def swhaledel(ctx, addr: str):
+    """Quick remove SOL whale: !swhaledel 9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM"""
+    s = _load_sol(); s.discard(addr); _save_sol(s)
+    await ctx.send(f"✅ Removed SOL whale: `{addr}`")
+
+@bot.command()
+async def swhalelist(ctx):
+    """List all tracked SOL whales: !swhalelist"""
+    s = _load_sol()
+    if s:
+        whale_list = "\n".join(f"- `{a[:8]}...{a[-6:]}`" for a in sorted(s))
+        await ctx.send(f"🐋 **SOL Whales Tracked** ({len(s)} total):\n{whale_list}")
+    else:
+        await ctx.send("No SOL whales tracked yet.")
 
 def get_bot_instance():
     """Get the bot instance for use in Flask routes"""
