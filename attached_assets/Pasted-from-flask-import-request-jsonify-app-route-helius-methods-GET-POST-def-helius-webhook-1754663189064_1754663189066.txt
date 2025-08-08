@@ -1,0 +1,56 @@
+from flask import request, jsonify
+
+@app.route("/helius", methods=["GET","POST"])
+def helius_webhook():
+    if request.method == "GET":
+        return "OK (helius)", 200
+
+    try:
+        payload = request.get_json(force=True, silent=True) or []
+        print("[helius raw]", str(payload)[:900])
+        watched = _load_sol()
+        msgs = []
+
+        # Helius sends a list of txs; we look for token transfers where a watched whale is sender/receiver
+        for tx in payload if isinstance(payload, list) else []:
+            events = (tx.get("events") or {})
+            tts = events.get("tokenTransfers") or []
+            for ev in tts:
+                src = ev.get("fromUserAccount")
+                dst = ev.get("toUserAccount")
+                mint = ev.get("tokenAddress") or ev.get("mint")
+                amount = ev.get("tokenAmount") or ev.get("amount")
+                if not mint: 
+                    continue
+
+                direction = None
+                whale = None
+                if dst in watched:
+                    direction, whale = "BUY", dst
+                elif src in watched:
+                    direction, whale = "SELL", src
+                else:
+                    continue
+
+                meta = ds_info_by_token(mint)
+                if not is_runner(meta):   # uses the shared filter below
+                    continue
+
+                sig = tx.get("signature") or tx.get("transaction") or ""
+                link = f"https://solscan.io/tx/{sig}" if sig else ""
+                msgs.append(
+                    f"🐋 **SOL Whale {direction}**\n"
+                    f"{meta['name']} (${meta['symbol']}) | MC: ${int(meta['fdv']):,} | "
+                    f"LP: ${int(meta['lp']):,} | Age: {meta['age_min']}m\n"
+                    f"Mint: `{mint}`\n{meta['chart']}\n{link}"
+                )
+
+        ch = bot.get_channel(CHANNEL_ID)
+        for m in msgs:
+            if ch: bot.loop.create_task(ch.send(m))
+            webhook_send(m)
+
+        return jsonify({"ok": True, "count": len(msgs)}), 200
+    except Exception as e:
+        print("[helius error]", e)
+        return jsonify({"ok": False, "err": str(e)}), 200

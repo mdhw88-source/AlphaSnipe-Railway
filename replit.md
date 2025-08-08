@@ -3,6 +3,7 @@
 Alpha Sniper Bot is a multi-chain cryptocurrency alert system that combines a Discord bot with a Flask web dashboard. The application automatically scans Solana and Ethereum data sources for fresh runner opportunities and sends enhanced real-time alerts to Discord channels. It features comprehensive duplicate prevention, chain-specific filtering, and a web interface for monitoring bot status and activity logs.
 
 ## Recent Changes (August 2025)
+**Latest Update:** Complete cross-chain webhook system with Helius integration for Solana whale tracking
 - ✅ **Enhanced Multi-Chain Runner Detection**: Sophisticated momentum, volume, and timing analysis across Solana and Ethereum
 - ✅ **Ultra-Fresh Discovery**: 15-minute to 1-hour optimal entry windows with age-based scoring bonuses
 - ✅ **Advanced Scoring Algorithms**: Momentum analysis, buy pressure scoring, volume acceleration detection
@@ -24,6 +25,7 @@ Alpha Sniper Bot is a multi-chain cryptocurrency alert system that combines a Di
 - ✅ **Cross-Chain Whale Management**: Added Solana whale tracking helpers for unified multi-chain whale monitoring
 - ✅ **Production-Ready Deployment**: Complete multi-chain intelligence system ready for 24/7 operation
 - ✅ **Universal Token Analysis**: Enhanced DexScreener integration supports both Solana and Ethereum tokens
+- ✅ **Complete Cross-Chain Webhooks**: Both Alchemy (ETH) and Helius (SOL) webhook handlers for comprehensive whale tracking
 
 # User Preferences
 

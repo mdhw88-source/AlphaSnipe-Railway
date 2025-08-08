@@ -268,3 +268,77 @@ def alchemy_webhook():
         print(f"[alchemy error details] {error_details}")
         # Return 200 so Alchemy doesn't spam retries
         return jsonify({"ok": False, "error": str(e), "details": error_details[:500]}), 200
+
+@app.route("/helius", methods=["GET","POST"])
+def helius_webhook():
+    """Helius webhook handler for Solana whale tracking with runner detection"""
+    if request.method == "GET":
+        return "OK (helius)", 200
+
+    try:
+        payload = request.get_json(force=True, silent=True) or []
+        print("[helius raw]", str(payload)[:900])
+        watched = _load_sol()
+        msgs = []
+
+        # Helius sends a list of txs; we look for token transfers where a watched whale is sender/receiver
+        for tx in payload if isinstance(payload, list) else []:
+            events = (tx.get("events") or {})
+            tts = events.get("tokenTransfers") or []
+            for ev in tts:
+                src = ev.get("fromUserAccount")
+                dst = ev.get("toUserAccount")
+                mint = ev.get("tokenAddress") or ev.get("mint")
+                amount = ev.get("tokenAmount") or ev.get("amount")
+                if not mint: 
+                    continue
+
+                direction = None
+                whale = None
+                if dst in watched:
+                    direction, whale = "BUY", dst
+                elif src in watched:
+                    direction, whale = "SELL", src
+                else:
+                    continue
+
+                meta = ds_info_by_token(mint)
+                if not is_runner(meta):   # uses the shared filter below
+                    continue
+
+                sig = tx.get("signature") or tx.get("transaction") or ""
+                link = f"https://solscan.io/tx/{sig}" if sig else ""
+                
+                # High-signal Solana whale runner alert
+                msg = (
+                    f"🚨 **SOL Whale BUY - RUNNER DETECTED** 🚨\n\n"
+                    f"🎯 **{meta['name']}** (${meta['symbol']})\n"
+                    f"💰 MC: ${int(meta['fdv']):,} | 💧 LP: ${int(meta['lp']):,} | ⏰ Age: {meta['age_min']}m\n\n"
+                    f"🐋 **Whale:** `{whale[:8]}...{whale[-6:]}`\n"
+                    f"🪙 **Mint:** `{mint}`\n\n"
+                    f"🔗 **Links**\n"
+                    f"• [Chart]({meta['chart']})\n"
+                    f"• [Transaction]({link})\n\n"
+                    f"**Alert:** Fresh Solana runner token with whale accumulation detected"
+                )
+                msgs.append(msg)
+
+        # Send alerts via Discord
+        from discord_bot import get_bot_instance, webhook_send, CHANNEL_ID
+        bot = get_bot_instance()
+        ch = bot.get_channel(CHANNEL_ID) if CHANNEL_ID else None
+        for m in msgs:
+            if ch and bot.is_ready(): 
+                bot.loop.create_task(ch.send(m))
+            webhook_send(m)
+            print(f"[helius] Generated SOL whale runner alert")
+
+        return jsonify({"ok": True, "count": len(msgs)}), 200
+        
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"[helius error] {e}")
+        print(f"[helius error details] {error_details}")
+        # Return 200 so Helius doesn't spam retries
+        return jsonify({"ok": False, "error": str(e), "details": error_details[:500]}), 200
