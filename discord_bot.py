@@ -149,6 +149,35 @@ async def scanner_loop():
                                         await ch.send(f"📊 **Enhanced Analysis for {hit['symbol']}**{helius_insight}")
                             except Exception as e:
                                 print(f"[helius] Error getting enhanced data: {e}")
+                        
+                        # Enhanced data for Ethereum tokens using Alchemy
+                        elif hit['chain'].lower() == 'ethereum':
+                            try:
+                                from alchemy_integration import get_enhanced_ethereum_data
+                                enhanced_data = get_enhanced_ethereum_data(hit['token'])
+                                if enhanced_data and enhanced_data.get('risk_flags'):
+                                    risk_flags = enhanced_data['risk_flags']
+                                    print(f"[alchemy] Risk flags for {hit['symbol']}: {risk_flags}")
+                                    
+                                    # Add risk warning to message if critical risks detected
+                                    if any(flag in ['LOW_ACTIVITY', 'ZERO_SUPPLY'] for flag in risk_flags):
+                                        warning_msg = f"\n⚠️ **Risk Warning**: {', '.join(risk_flags).replace('_', ' ').lower()}"
+                                        # Send follow-up message with risk analysis
+                                        await ch.send(f"🔍 **Alchemy Risk Analysis for {hit['symbol']}**{warning_msg}")
+                                
+                                if enhanced_data and enhanced_data.get('transaction_count'):
+                                    tx_count = enhanced_data['transaction_count']
+                                    activity_score = enhanced_data.get('activity_score', 0)
+                                    print(f"[alchemy] {hit['symbol']}: {tx_count} recent transactions, activity score: {activity_score:.1f}")
+                                    
+                                    # Add Alchemy insights to the main alert message
+                                    if tx_count > 0:
+                                        alchemy_insight = f"\n⚗️ **Alchemy**: {tx_count} recent transactions, activity score: {activity_score:.1f}/5.0"
+                                        if enhanced_data.get('risk_flags'):
+                                            alchemy_insight += f" | ⚠️ {len(enhanced_data['risk_flags'])} risk flags"
+                                        await ch.send(f"📊 **Enhanced Analysis for {hit['symbol']}**{alchemy_insight}")
+                            except Exception as e:
+                                print(f"[alchemy] Error getting enhanced data: {e}")
                     except Exception as e:
                         print(f"[sentiment_tracker] Error registering alert or adding reactions: {e}")
                 webhook_send(text)
@@ -360,58 +389,118 @@ async def sentiment_analysis(ctx, token: str = None):
         await ctx.send(f"Error getting sentiment analysis: {e}")
 
 @bot.command(name='analyze')
-async def helius_analyze(ctx, token_address: str = None):
-    """Deep analysis of Solana token using Helius: !analyze <token_address>"""
+async def enhanced_analyze(ctx, token_address: str = None, chain: str = "auto"):
+    """Deep analysis using premium APIs: !analyze <token_address> [solana|ethereum|auto]"""
     if not token_address:
-        await ctx.send("Usage: `!analyze <solana_token_address>`")
+        await ctx.send("Usage: `!analyze <token_address> [solana|ethereum|auto]`")
         return
     
     try:
-        from helius_integration import get_enhanced_solana_data, is_helius_available
+        # Auto-detect chain based on address format
+        if chain == "auto":
+            if len(token_address) == 42 and token_address.startswith("0x"):
+                chain = "ethereum"
+            elif len(token_address) >= 32 and not token_address.startswith("0x"):
+                chain = "solana"
+            else:
+                await ctx.send("Could not detect chain. Please specify: `!analyze <address> solana` or `!analyze <address> ethereum`")
+                return
         
-        if not is_helius_available():
-            await ctx.send("Helius API not available for enhanced analysis")
-            return
-        
-        await ctx.send(f"🔍 Analyzing {token_address[:8]}... (using Helius)")
-        
-        enhanced_data = get_enhanced_solana_data(token_address)
-        
-        if not enhanced_data:
-            await ctx.send("Could not retrieve enhanced data for this token")
-            return
-        
-        # Format comprehensive analysis
-        response = f"🔬 **Helius Deep Analysis**\n\n"
-        
-        if enhanced_data.get('metadata'):
-            metadata = enhanced_data['metadata']
-            response += f"🏷️ **Token Info**\n"
-            response += f"• Name: {enhanced_data.get('name', 'Unknown')}\n"
-            response += f"• Symbol: {enhanced_data.get('symbol', 'UNK')}\n"
-            response += f"• Verified: {'✅' if enhanced_data.get('verified', False) else '❌'}\n\n"
-        
-        response += f"👥 **Holder Analysis**\n"
-        response += f"• Total Holders: {enhanced_data.get('holder_count', 0):,}\n"
-        response += f"• Whale Concentration: {enhanced_data.get('whale_concentration', 0):.1f}%\n\n"
-        
-        risk_flags = enhanced_data.get('risk_flags', [])
-        if risk_flags:
-            response += f"⚠️ **Risk Flags**\n"
-            for flag in risk_flags:
-                response += f"• {flag.replace('_', ' ').title()}\n"
+        if chain.lower() == "solana":
+            from helius_integration import get_enhanced_solana_data, is_helius_available
+            
+            if not is_helius_available():
+                await ctx.send("Helius API not available for Solana analysis")
+                return
+            
+            await ctx.send(f"🔍 Analyzing Solana token {token_address[:8]}... (using Helius)")
+            
+            enhanced_data = get_enhanced_solana_data(token_address)
+            
+            if not enhanced_data:
+                await ctx.send("Could not retrieve enhanced data for this token")
+                return
+            
+            # Format Solana analysis
+            response = f"🔬 **Helius Deep Analysis (Solana)**\n\n"
+            
+            if enhanced_data.get('metadata'):
+                response += f"🏷️ **Token Info**\n"
+                response += f"• Name: {enhanced_data.get('name', 'Unknown')}\n"
+                response += f"• Symbol: {enhanced_data.get('symbol', 'UNK')}\n"
+                response += f"• Verified: {'✅' if enhanced_data.get('verified', False) else '❌'}\n\n"
+            
+            response += f"👥 **Holder Analysis**\n"
+            response += f"• Total Holders: {enhanced_data.get('holder_count', 0):,}\n"
+            response += f"• Whale Concentration: {enhanced_data.get('whale_concentration', 0):.1f}%\n\n"
+            
+            risk_flags = enhanced_data.get('risk_flags', [])
+            if risk_flags:
+                response += f"⚠️ **Risk Flags**\n"
+                for flag in risk_flags:
+                    response += f"• {flag.replace('_', ' ').title()}\n"
+            else:
+                response += f"✅ **Risk Assessment**: No major flags detected\n"
+            
+            response += f"\n🎯 **Investment Signal**: "
+            if enhanced_data.get('whale_concentration', 0) > 80:
+                response += "🔴 High Risk (Whale Dominated)"
+            elif enhanced_data.get('holder_count', 0) < 50:
+                response += "🟡 Medium Risk (Low Holders)"
+            elif len(risk_flags) == 0:
+                response += "🟢 Low Risk (Good Distribution)"
+            else:
+                response += "🟡 Medium Risk (Some Concerns)"
+                
+        elif chain.lower() == "ethereum":
+            from alchemy_integration import get_enhanced_ethereum_data, is_alchemy_available
+            
+            if not is_alchemy_available():
+                await ctx.send("Alchemy API not available for Ethereum analysis")
+                return
+            
+            await ctx.send(f"🔍 Analyzing Ethereum token {token_address[:8]}... (using Alchemy)")
+            
+            enhanced_data = get_enhanced_ethereum_data(token_address)
+            
+            if not enhanced_data:
+                await ctx.send("Could not retrieve enhanced data for this token")
+                return
+            
+            # Format Ethereum analysis
+            response = f"🔬 **Alchemy Deep Analysis (Ethereum)**\n\n"
+            
+            if enhanced_data.get('metadata'):
+                response += f"🏷️ **Token Info**\n"
+                response += f"• Name: {enhanced_data.get('name', 'Unknown')}\n"
+                response += f"• Symbol: {enhanced_data.get('symbol', 'UNK')}\n"
+                response += f"• Decimals: {enhanced_data.get('decimals', 18)}\n"
+                response += f"• Total Supply: {enhanced_data.get('total_supply', 0):,}\n\n"
+            
+            response += f"📊 **Activity Analysis**\n"
+            response += f"• Recent Transactions: {enhanced_data.get('transaction_count', 0):,}\n"
+            response += f"• Activity Score: {enhanced_data.get('activity_score', 0):.1f}/5.0\n\n"
+            
+            risk_flags = enhanced_data.get('risk_flags', [])
+            if risk_flags:
+                response += f"⚠️ **Risk Flags**\n"
+                for flag in risk_flags:
+                    response += f"• {flag.replace('_', ' ').title()}\n"
+            else:
+                response += f"✅ **Risk Assessment**: No major flags detected\n"
+            
+            response += f"\n🎯 **Investment Signal**: "
+            if 'ZERO_SUPPLY' in risk_flags:
+                response += "🔴 High Risk (Zero Supply)"
+            elif enhanced_data.get('transaction_count', 0) < 10:
+                response += "🟡 Medium Risk (Low Activity)"
+            elif len(risk_flags) == 0 and enhanced_data.get('activity_score', 0) > 2:
+                response += "🟢 Low Risk (Good Activity)"
+            else:
+                response += "🟡 Medium Risk (Some Concerns)"
         else:
-            response += f"✅ **Risk Assessment**: No major flags detected\n"
-        
-        response += f"\n🎯 **Investment Signal**: "
-        if enhanced_data.get('whale_concentration', 0) > 80:
-            response += "🔴 High Risk (Whale Dominated)"
-        elif enhanced_data.get('holder_count', 0) < 50:
-            response += "🟡 Medium Risk (Low Holders)"
-        elif len(risk_flags) == 0:
-            response += "🟢 Low Risk (Good Distribution)"
-        else:
-            response += "🟡 Medium Risk (Some Concerns)"
+            await ctx.send("Invalid chain. Use 'solana' or 'ethereum'")
+            return
         
         await ctx.send(response)
         
