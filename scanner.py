@@ -2,6 +2,7 @@
 import time, requests, os, re
 from fresh_pairs_scraper import scrape_fresh_pairs, get_fresh_pairs_enhanced
 from birdeye_scraper import get_combined_fresh_tokens
+from solana_scanner import get_runner_candidates
 
 DEX_API = "https://api.dexscreener.com/latest/dex/search"
 CHAINS = ["solana", "ethereum"]  # Temporary, will be updated to use token profiles
@@ -41,25 +42,32 @@ def pick_new_pairs():
         last_reset = current_time
         print("[scanner] Cleared sent tokens cache (1 hour passed)")
     
-    # Try multiple fresh data sources
+    # Try Solana runner candidates first, then fallback to other sources
     try:
-        # First try combined alternative sources (Birdeye, Solscan, CoinGecko)
-        fresh_pairs = get_combined_fresh_tokens(25)
-        if fresh_pairs:
-            print(f"[scanner] Using alternative sources: {len(fresh_pairs)} pairs")
-            pairs_to_process = [('fresh', fresh_pairs)]
+        # Priority: Solana runner candidates
+        runner_candidates = get_runner_candidates(20)
+        if runner_candidates:
+            print(f"[scanner] Using Solana runner scanner: {len(runner_candidates)} candidates")
+            pairs_to_process = [('solana_runners', runner_candidates)]
         else:
-            # Fallback to DexScreener scraper
-            fresh_pairs = get_fresh_pairs_enhanced()
+            # Fallback to combined alternative sources
+            fresh_pairs = get_combined_fresh_tokens(15)
             if fresh_pairs:
-                print(f"[scanner] Using DexScreener scraper: {len(fresh_pairs)} pairs")
+                print(f"[scanner] Using alternative sources: {len(fresh_pairs)} pairs")
                 pairs_to_process = [('fresh', fresh_pairs)]
             else:
                 print("[scanner] All fresh sources failed, using API")
                 pairs_to_process = [(chain, _pairs(chain)) for chain in CHAINS]
     except Exception as e:
-        print(f"[scanner] Fresh sources failed: {e}, using API")
-        pairs_to_process = [(chain, _pairs(chain)) for chain in CHAINS]
+        print(f"[scanner] Runner scanner failed: {e}, trying alternatives")
+        try:
+            fresh_pairs = get_combined_fresh_tokens(15)
+            if fresh_pairs:
+                pairs_to_process = [('fresh', fresh_pairs)]
+            else:
+                pairs_to_process = [(chain, _pairs(chain)) for chain in CHAINS]
+        except:
+            pairs_to_process = [(chain, _pairs(chain)) for chain in CHAINS]
     
     for source, pairs in pairs_to_process:
         total_pairs += len(pairs)
@@ -87,13 +95,32 @@ def pick_new_pairs():
             name = (p.get("baseToken", {}) or {}).get("name", "")
             symbol = base_symbol or name
 
-            # Debug: show first few pairs
+            # Runner score bonus for prioritization
+            runner_score = p.get('runner_score', 0)
+            
+            # Debug: show first few pairs with runner scores
             if filtered_pairs < 3:
-                print(f"[scanner] pair: {name} {symbol}, age: {age_min}min, lp: ${liquidity_usd}, mc: ${fdv}, holders: {holders}")
+                print(f"[scanner] pair: {name} {symbol}, age: {age_min}min, lp: ${liquidity_usd}, mc: ${fdv}, runner_score: {runner_score}")
 
-            # basic filters (relaxed for testing)
-            print(f"[scanner] checking {name}: age={age_min}<={MAX_AGE_MIN}? {age_min <= MAX_AGE_MIN}, lp=${liquidity_usd}>={MIN_LP}? {liquidity_usd >= MIN_LP}, mc=${fdv}<={MAX_MC}? {fdv <= MAX_MC}")
-            if age_min <= MAX_AGE_MIN and liquidity_usd >= MIN_LP and fdv <= MAX_MC:
+            # Enhanced filters for runner potential
+            age_ok = age_min <= MAX_AGE_MIN
+            lp_ok = liquidity_usd >= MIN_LP
+            mc_ok = fdv <= MAX_MC
+            
+            # Special handling for high runner score tokens
+            if runner_score >= 3:
+                # Relax filters for high-potential runners
+                age_ok = age_min <= 2880  # 48 hours for high-score tokens
+                lp_ok = liquidity_usd >= 1000  # Lower liquidity requirement
+                mc_ok = fdv <= 5000000  # Higher market cap allowed for runners
+            
+            age_limit = 2880 if runner_score >= 3 else MAX_AGE_MIN
+            lp_limit = 1000 if runner_score >= 3 else MIN_LP
+            mc_limit = 5000000 if runner_score >= 3 else MAX_MC
+            
+            print(f"[scanner] checking {name}: age={age_min}≤{age_limit}? {age_ok}, lp=${liquidity_usd}≥{lp_limit}? {lp_ok}, mc=${fdv}≤{mc_limit}? {mc_ok}, score={runner_score}")
+            
+            if age_ok and lp_ok and mc_ok:
                 if holders < MIN_HOLDERS:
                     print(f"[scanner] ❌ {name}: holders {holders} < {MIN_HOLDERS}")
                     continue
