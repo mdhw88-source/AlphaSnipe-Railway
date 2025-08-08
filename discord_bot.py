@@ -29,8 +29,32 @@ def webhook_send(text: str):
 
 @bot.event
 async def on_ready():
+    from datetime import datetime
     print(f"[diag] Logged in as {bot.user} (id: {bot.user.id})")
     print(f"[diag] guilds: {[g.name for g in bot.guilds]}")
+    
+    # Update bot status in database
+    try:
+        from models import BotStatus
+        from app import db, app
+        
+        with app.app_context():
+            bot_status = BotStatus.query.first()
+            if not bot_status:
+                bot_status = BotStatus()
+                db.session.add(bot_status)
+            
+            bot_status.is_online = True
+            bot_status.last_heartbeat = datetime.utcnow()
+            bot_status.guild_count = len(bot.guilds)
+            bot_status.latency = round(bot.latency * 1000, 2)  # Convert to ms
+            bot_status.uptime_start = datetime.utcnow()
+            
+            db.session.commit()
+            print("[diag] Updated bot status in database")
+    except Exception as e:
+        print(f"[diag] Error updating bot status: {e}")
+    
     msg = "✅ **Alpha Sniper Bot Online** (diag)"
     if CHANNEL_ID:
         ch = bot.get_channel(CHANNEL_ID)
