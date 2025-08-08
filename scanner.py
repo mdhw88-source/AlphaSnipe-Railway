@@ -12,8 +12,6 @@ MIN_HOLDERS = 0     # (sync with discord_bot.py)
 
 NARRATIVE = re.compile(r".*", re.I)  # Temporarily match all tokens for testing
 
-seen = set()
-
 def _pairs(chain):
     # Dexscreener “latest pairs” by chain
     url = f"{DEX_API}?q={chain}"
@@ -29,6 +27,7 @@ def pick_new_pairs():
     results = []
     total_pairs = 0
     filtered_pairs = 0
+    seen = set()  # Reset for each scan to allow fresh alerts
     
     # Try multiple fresh data sources
     try:
