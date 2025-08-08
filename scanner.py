@@ -2,10 +2,10 @@
 import time, requests, os, re
 
 DEX_API = "https://api.dexscreener.com/latest/dex/search"
-CHAINS = ["solana", "ethereum"]  # extend later
+CHAINS = ["solana", "ethereum"]  # Temporary, will be updated to use token profiles
 MIN_LP = 3000       # USD (sync with discord_bot.py)
-MAX_MC = 1_500_000  # USD (sync with discord_bot.py)
-MAX_AGE_MIN = 60    # (sync with discord_bot.py)
+MAX_MC = 200_000_000  # Temporarily relaxed for testing (sync with discord_bot.py)
+MAX_AGE_MIN = 999999999    # Temporarily disabled for testing (sync with discord_bot.py)
 MIN_HOLDERS = 0     # (sync with discord_bot.py)
 
 NARRATIVE = re.compile(r".*", re.I)  # Temporarily match all tokens for testing
@@ -25,8 +25,15 @@ def _pairs(chain):
 
 def pick_new_pairs():
     results = []
+    total_pairs = 0
+    filtered_pairs = 0
+    
     for chain in CHAINS:
-        for p in _pairs(chain):
+        pairs = _pairs(chain)
+        total_pairs += len(pairs)
+        print(f"[scanner] {chain}: fetched {len(pairs)} pairs")
+        
+        for p in pairs:
             pair_id = p.get("pairAddress") or p.get("pairCreatedAt")
             if not pair_id or pair_id in seen:
                 continue
@@ -39,15 +46,25 @@ def pick_new_pairs():
             name = (p.get("baseToken", {}) or {}).get("name", "")
             symbol = base_symbol or name
 
+            # Debug: show first few pairs
+            if filtered_pairs < 3:
+                print(f"[scanner] pair: {name} {symbol}, age: {age_min}min, lp: ${liquidity_usd}, mc: ${fdv}, holders: {holders}")
+
             # basic filters (relaxed for testing)
+            print(f"[scanner] checking {name}: age={age_min}<={MAX_AGE_MIN}? {age_min <= MAX_AGE_MIN}, lp=${liquidity_usd}>={MIN_LP}? {liquidity_usd >= MIN_LP}, mc=${fdv}<={MAX_MC}? {fdv <= MAX_MC}")
             if age_min <= MAX_AGE_MIN and liquidity_usd >= MIN_LP and fdv <= MAX_MC:
                 if holders < MIN_HOLDERS:
+                    print(f"[scanner] ❌ {name}: holders {holders} < {MIN_HOLDERS}")
                     continue
                 text = f"{name} {symbol}"
                 if not NARRATIVE.search(text):
+                    print(f"[scanner] ❌ {name}: narrative filter failed")
                     continue
 
                 seen.add(pair_id)
+                filtered_pairs += 1
+                print(f"[scanner] ✅ MATCH: {name} {symbol}")
+                
                 # craft alert data
                 res = {
                     "chain": chain.title(),
@@ -60,4 +77,8 @@ def pick_new_pairs():
                     "token": (p.get("baseToken", {}) or {}).get("address", ""),
                 }
                 results.append(res)
+            else:
+                print(f"[scanner] ❌ {name}: basic filters failed")
+    
+    print(f"[scanner] Summary: {total_pairs} total pairs, {filtered_pairs} passed filters, {len(results)} new alerts")
     return results
