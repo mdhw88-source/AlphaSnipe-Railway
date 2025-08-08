@@ -16,5 +16,7 @@ if __name__ == "__main__":
     bot_thread = threading.Thread(target=start_discord_bot, daemon=True)
     bot_thread.start()
     
-    # Start Flask app
-    app.run(host="0.0.0.0", port=5000, debug=True, use_reloader=False)
+    # Production server configuration with dynamic port
+    import os
+    app_port = int(os.getenv("PORT", "5000"))
+    app.run(host="0.0.0.0", port=app_port, debug=False, use_reloader=False)
