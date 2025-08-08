@@ -83,8 +83,9 @@ async def scanner_loop():
                     pump_link = ""
                     chain_emoji = "🔗"
                 
-                # Add paper trading suggestion
+                # Add paper trading and sentiment suggestions
                 paper_trade_msg = f"\n\n💡 **Paper Trade**: `!enter {hit['token']} 1000` ($1000 position)"
+                sentiment_msg = f"\n📊 **React to share sentiment**: 🚀 Bullish • 📉 Bearish • 🤔 Uncertain"
                 
                 text = (
                     f"🚨 **{chain_emoji} {chain} RUNNER ALERT** 🚨\n\n"
@@ -101,10 +102,26 @@ async def scanner_loop():
                     f"• {explorer_link}\n"
                     f"{pump_link}\n"
                     f"**Chain:** {chain}\n"
-                    f"**Why This Matters:** Fresh {chain.lower()} token with runner characteristics detected by multi-source analysis{paper_trade_msg}"
+                    f"**Why This Matters:** Fresh {chain.lower()} token with runner characteristics detected by multi-source analysis{paper_trade_msg}{sentiment_msg}"
                 )
                 if ch: 
-                    await ch.send(text)
+                    message = await ch.send(text)
+                    # Register alert for sentiment tracking
+                    try:
+                        from sentiment_tracker import register_runner_alert
+                        register_runner_alert(
+                            str(message.id),
+                            hit['token'],
+                            hit['symbol'],
+                            hit['chain'].lower(),
+                            runner_score
+                        )
+                        # Add initial reaction options for users
+                        await message.add_reaction("🚀")  # Bullish
+                        await message.add_reaction("📉")  # Bearish  
+                        await message.add_reaction("🤔")  # Uncertain
+                    except Exception as e:
+                        print(f"[sentiment_tracker] Error registering alert or adding reactions: {e}")
                 webhook_send(text)
         except Exception as e:
             print("[scanner_loop]", e)

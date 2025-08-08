@@ -228,6 +228,10 @@ class PaperTradingEngine:
         winning_trades = len([pos for pos in self.closed_positions if pos.pnl_usd and pos.pnl_usd > 0])
         win_rate = (winning_trades / total_trades * 100) if total_trades > 0 else 0
         
+        # Get best and worst performers
+        best_trade = max(self.closed_positions, key=lambda x: x.pnl_percent or 0) if self.closed_positions else None
+        worst_trade = min(self.closed_positions, key=lambda x: x.pnl_percent or 0) if self.closed_positions else None
+        
         return {
             "open_pnl": open_pnl,
             "closed_pnl": closed_pnl,
@@ -236,7 +240,9 @@ class PaperTradingEngine:
             "closed_positions": total_trades,
             "win_rate": win_rate,
             "open_positions_data": open_positions_data,
-            "recent_closed": self.closed_positions[-5:] if self.closed_positions else []
+            "recent_closed": self.closed_positions[-5:] if self.closed_positions else [],
+            "best_trade": best_trade,
+            "worst_trade": worst_trade
         }
 
 # Global paper trading engine

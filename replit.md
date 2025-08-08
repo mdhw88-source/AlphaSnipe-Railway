@@ -11,6 +11,8 @@ Alpha Sniper Bot is a multi-chain cryptocurrency alert system that combines a Di
 - ✅ **Professional Discord Alerts**: Chain-specific formatting with ☀️ Solana and ⛽ Ethereum indicators
 - ✅ **Perfect Score Detection**: Successfully identifying 5/5 runners like "Murad 💹🧲", "Ibiza Final Boss Wife", "ChillBoss"
 - ✅ **Smart Duplicate Prevention**: Hourly cooldown system preventing spam while allowing fresh high-quality alerts
+- ✅ **Paper Trading Integration**: Full position tracking with Discord commands (!enter, !exit, !pnl)
+- ✅ **Emoji-Based Sentiment Tracker**: Real-time reaction monitoring with performance correlation analysis
 
 # User Preferences
 
