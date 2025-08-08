@@ -33,5 +33,22 @@ with app.app_context():
     import models
     db.create_all()
 
+# Start Discord bot in a separate thread when app initializes
+import threading
+import asyncio
+from discord_bot import run_discord_bot
+
+def start_discord_bot():
+    """Start the Discord bot in a separate thread"""
+    try:
+        asyncio.run(run_discord_bot())
+    except Exception as e:
+        logging.error(f"Discord bot error: {e}")
+
+# Start Discord bot thread
+bot_thread = threading.Thread(target=start_discord_bot, daemon=True)
+bot_thread.start()
+logging.info("Discord bot thread started")
+
 # Import routes after app initialization
 from routes import *
