@@ -188,37 +188,39 @@ def alchemy_webhook():
                     f"Asset: {asset}  |  Amount: {display_value}\n{link}"
                 )
                 
-                # Check if it's a potential runner token (only for ERC20 tokens, not ETH)
-                if asset != "ETH" and direction == "BUY":
-                    # Extract contract address from transaction logs (simplified approach)
-                    contract_addr = None
-                    if "log" in a and "address" in a["log"]:
-                        contract_addr = a["log"]["address"]
+                # Enhanced token detection for BUY transactions only
+                if direction == "BUY":
+                    # Extract token contract address from multiple possible locations
+                    token_addr = (
+                        a.get("rawContract", {}).get("address") 
+                        or (a.get("erc20Metadata") or {}).get("contractAddress")
+                        or (a.get("log", {}).get("address") if "log" in a else None)
+                    )
                     
-                    if contract_addr:
-                        token_info = ds_info(contract_addr)
-                        if token_info and is_runner(token_info):
-                            enhanced_msg = (
-                                f"🚨 **POTENTIAL RUNNER DETECTED** 🚨\n"
-                                f"🐋 **ETH Whale BUY Alert**\n\n"
-                                f"🎯 **{token_info['name']}** (${token_info['symbol']})\n"
-                                f"💰 Market Cap: ${token_info['fdv']:,.0f}\n"
-                                f"💧 Liquidity: ${token_info['lp']:,.0f}\n"
-                                f"⏰ Age: {token_info['age_min']}m\n\n"
-                                f"🐋 **Whale Activity**\n"
-                                f"Addr: `{whale_addr[:8]}...{whale_addr[-6:]}`\n"
-                                f"Amount: {display_value}\n\n"
-                                f"🔗 **Links**\n"
-                                f"• [Chart]({token_info['chart']})\n"
-                                f"• [Transaction]({link})\n\n"
-                                f"**Why This Matters:** Fresh ETH token with runner potential + whale activity"
-                            )
-                            messages.append(enhanced_msg)
-                        else:
-                            messages.append(base_msg)
+                    # Analyze token if we have an address
+                    if token_addr:
+                        meta = ds_info(token_addr)
+                        if not is_runner(meta):
+                            continue  # Skip low-signal whale transactions
+                        
+                        # High-signal runner whale alert
+                        msg = (
+                            f"🚨 **ETH Whale BUY - RUNNER DETECTED** 🚨\n\n"
+                            f"🎯 **{meta['name']}** (${meta['symbol']})\n"
+                            f"💰 MC: ${int(meta['fdv']):,} | 💧 LP: ${int(meta['lp']):,} | ⏰ Age: {meta['age_min']}m\n\n"
+                            f"🐋 **Whale:** `{whale_addr[:8]}...{whale_addr[-6:]}`\n"
+                            f"💵 **Amount:** {display_value}\n\n"
+                            f"🔗 **Links**\n"
+                            f"• [Chart]({meta['chart']})\n"
+                            f"• [Transaction]({link})\n\n"
+                            f"**Alert:** Fresh runner token with whale accumulation detected"
+                        )
+                        messages.append(msg)
                     else:
+                        # Regular whale alert for transactions without token address
                         messages.append(base_msg)
                 else:
+                    # SELL transactions get standard whale alerts
                     messages.append(base_msg)
                 
                 print(f"[alchemy] Generated whale alert: {direction} {asset} by {whale_addr[:8]}...")
