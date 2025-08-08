@@ -104,6 +104,22 @@ def is_runner(meta):
         return False
     return True
 
+# Solana whale tracking helpers
+import json
+WHALES_SOL_FILE = "whales_sol.json"
+
+def _load_sol():
+    try: 
+        return set(json.load(open(WHALES_SOL_FILE)))
+    except: 
+        return set()
+
+def _save_sol(s):
+    try: 
+        json.dump(list(s), open(WHALES_SOL_FILE, "w"))
+    except: 
+        pass
+
 @app.route('/alchemy', methods=['GET', 'POST'])
 def alchemy_webhook():
     """Webhook endpoint for Alchemy ETH whale tracking with health check"""
@@ -204,17 +220,20 @@ def alchemy_webhook():
                             continue  # Skip low-signal whale transactions
                         
                         # High-signal runner whale alert
-                        msg = (
-                            f"🚨 **ETH Whale BUY - RUNNER DETECTED** 🚨\n\n"
-                            f"🎯 **{meta['name']}** (${meta['symbol']})\n"
-                            f"💰 MC: ${int(meta['fdv']):,} | 💧 LP: ${int(meta['lp']):,} | ⏰ Age: {meta['age_min']}m\n\n"
-                            f"🐋 **Whale:** `{whale_addr[:8]}...{whale_addr[-6:]}`\n"
-                            f"💵 **Amount:** {display_value}\n\n"
-                            f"🔗 **Links**\n"
-                            f"• [Chart]({meta['chart']})\n"
-                            f"• [Transaction]({link})\n\n"
-                            f"**Alert:** Fresh runner token with whale accumulation detected"
-                        )
+                        if meta and all(key in meta for key in ['name', 'symbol', 'fdv', 'lp', 'age_min', 'chart']):
+                            msg = (
+                                f"🚨 **ETH Whale BUY - RUNNER DETECTED** 🚨\n\n"
+                                f"🎯 **{meta['name']}** (${meta['symbol']})\n"
+                                f"💰 MC: ${int(meta['fdv']):,} | 💧 LP: ${int(meta['lp']):,} | ⏰ Age: {meta['age_min']}m\n\n"
+                                f"🐋 **Whale:** `{whale_addr[:8]}...{whale_addr[-6:]}`\n"
+                                f"💵 **Amount:** {display_value}\n\n"
+                                f"🔗 **Links**\n"
+                                f"• [Chart]({meta['chart']})\n"
+                                f"• [Transaction]({link})\n\n"
+                                f"**Alert:** Fresh runner token with whale accumulation detected"
+                            )
+                        else:
+                            msg = base_msg
                         messages.append(msg)
                     else:
                         # Regular whale alert for transactions without token address
