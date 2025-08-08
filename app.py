@@ -57,6 +57,52 @@ from routes import *
 from whale_tracker import whale_tracker, is_tracked_whale
 from flask import request, jsonify
 import json
+import requests
+import time
+
+# ETH Runner Detection Helper Functions
+MAX_MC = 500_000
+MAX_AGE_MIN = 24*60
+MIN_LP = 15_000
+
+def ds_info(erc20_addr: str):
+    """Get DexScreener info for token analysis"""
+    try:
+        r = requests.get(f"https://api.dexscreener.com/latest/dex/tokens/{erc20_addr}", timeout=10)
+        if r.status_code != 200: 
+            return None
+        pairs = r.json().get("pairs") or []
+        if not pairs: 
+            return None
+        # Pick newest EVM pair
+        p = sorted(pairs, key=lambda x: x.get("pairCreatedAt") or 0, reverse=True)[0]
+        fdv = float(p.get("fdv") or 0)
+        lp = float((p.get("liquidity") or {}).get("usd") or 0)
+        created = p.get("pairCreatedAt") or int(time.time()*1000)
+        age_min = int((time.time()*1000 - created)/60000)
+        return {
+            "fdv": fdv, 
+            "lp": lp, 
+            "age_min": age_min,
+            "symbol": (p.get("baseToken") or {}).get("symbol") or "?",
+            "name": (p.get("baseToken") or {}).get("name") or "?",
+            "chart": p.get("url") or p.get("pairUrl") or ""
+        }
+    except Exception as e:
+        print(f"[ds_info] Error fetching token data: {e}")
+        return None
+
+def is_runner(meta):
+    """Check if token qualifies as a runner based on criteria"""
+    if not meta: 
+        return False
+    if meta["age_min"] > MAX_AGE_MIN: 
+        return False
+    if meta["fdv"] and meta["fdv"] > MAX_MC: 
+        return False
+    if meta["lp"] < MIN_LP: 
+        return False
+    return True
 
 @app.route('/alchemy', methods=['GET', 'POST'])
 def alchemy_webhook():
@@ -135,12 +181,46 @@ def alchemy_webhook():
                 # Format value for display
                 display_value = str(value)[:20] + "..." if len(str(value)) > 20 else str(value)
                 
-                msg = (
+                # Enhanced whale alert with runner detection
+                base_msg = (
                     f"🐋 **ETH Whale {direction}**\n"
                     f"Addr: `{whale_addr[:8]}...{whale_addr[-6:]}`\n"
                     f"Asset: {asset}  |  Amount: {display_value}\n{link}"
                 )
-                messages.append(msg)
+                
+                # Check if it's a potential runner token (only for ERC20 tokens, not ETH)
+                if asset != "ETH" and direction == "BUY":
+                    # Extract contract address from transaction logs (simplified approach)
+                    contract_addr = None
+                    if "log" in a and "address" in a["log"]:
+                        contract_addr = a["log"]["address"]
+                    
+                    if contract_addr:
+                        token_info = ds_info(contract_addr)
+                        if token_info and is_runner(token_info):
+                            enhanced_msg = (
+                                f"🚨 **POTENTIAL RUNNER DETECTED** 🚨\n"
+                                f"🐋 **ETH Whale BUY Alert**\n\n"
+                                f"🎯 **{token_info['name']}** (${token_info['symbol']})\n"
+                                f"💰 Market Cap: ${token_info['fdv']:,.0f}\n"
+                                f"💧 Liquidity: ${token_info['lp']:,.0f}\n"
+                                f"⏰ Age: {token_info['age_min']}m\n\n"
+                                f"🐋 **Whale Activity**\n"
+                                f"Addr: `{whale_addr[:8]}...{whale_addr[-6:]}`\n"
+                                f"Amount: {display_value}\n\n"
+                                f"🔗 **Links**\n"
+                                f"• [Chart]({token_info['chart']})\n"
+                                f"• [Transaction]({link})\n\n"
+                                f"**Why This Matters:** Fresh ETH token with runner potential + whale activity"
+                            )
+                            messages.append(enhanced_msg)
+                        else:
+                            messages.append(base_msg)
+                    else:
+                        messages.append(base_msg)
+                else:
+                    messages.append(base_msg)
+                
                 print(f"[alchemy] Generated whale alert: {direction} {asset} by {whale_addr[:8]}...")
 
         # Send messages to Discord via webhook

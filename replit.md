@@ -18,6 +18,8 @@ Alpha Sniper Bot is a multi-chain cryptocurrency alert system that combines a Di
 - ✅ **Enhanced Analytics Commands**: !analyze command with auto-chain detection for comprehensive token analysis
 - ✅ **Comprehensive Whale Tracking**: Real-time whale movement alerts via Alchemy webhooks with transaction details
 - ✅ **Dual Whale Management Systems**: Both comprehensive (!whale) and simplified (!whaleadd/whaledel/whalelist) commands
+- ✅ **Enhanced ETH Webhook with Runner Detection**: Automatic DexScreener analysis when whales buy ERC20 tokens
+- ✅ **Smart Runner Alerts**: Upgraded whale notifications detect fresh runners (Max: $500K MC, 24h age, $15K+ LP)
 
 # User Preferences
 
