@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+
+{% block title %}Activity Logs - Alpha Sniper Bot{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1 class="h2 mb-0">
+            <i data-feather="file-text" class="me-2"></i>
+            Activity Logs
+        </h1>
+        <p class="text-muted">Monitor bot activity and system events</p>
+    </div>
+</div>
+
+<!-- Filter Controls -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body">
+                <form method="GET" class="d-flex align-items-center gap-3">
+                    <div class="flex-grow-1">
+                        <select name="status" class="form-select" onchange="this.form.submit()">
+                            <option value="">All Status Types</option>
+                            <option value="success" {% if status_filter == 'success' %}selected{% endif %}>Success</option>
+                            <option value="error" {% if status_filter == 'error' %}selected{% endif %}>Error</option>
+                            <option value="info" {% if status_filter == 'info' %}selected{% endif %}>Info</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-outline-primary">
+                        <i data-feather="filter" class="me-1"></i>
+                        Filter
+                    </button>
+                    {% if status_filter %}
+                        <a href="{{ url_for('logs') }}" class="btn btn-outline-secondary">
+                            <i data-feather="x" class="me-1"></i>
+                            Clear
+                        </a>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Logs Display -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">System Activity</h5>
+        <small class="text-muted">Real-time monitoring</small>
+    </div>
+    <div class="card-body p-0">
+        {% if logs.items %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th width="20%">Timestamp</th>
+                            <th width="20%">Action</th>
+                            <th width="15%">Status</th>
+                            <th width="45%">Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in logs.items %}
+                            <tr>
+                                <td>
+                                    <div class="fw-bold">{{ log.timestamp.strftime('%Y-%m-%d') }}</div>
+                                    <small class="text-muted">{{ log.timestamp.strftime('%H:%M:%S') }}</small>
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        {% if log.action == 'Bot Connected' %}
+                                            <i data-feather="wifi" class="me-2 text-success"></i>
+                                        {% elif log.action == 'Bot Disconnected' %}
+                                            <i data-feather="wifi-off" class="me-2 text-danger"></i>
+                                        {% elif log.action == 'Alert Sent' %}
+                                            <i data-feather="send" class="me-2 text-primary"></i>
+                                        {% elif log.action == 'Alert Failed' %}
+                                            <i data-feather="alert-triangle" class="me-2 text-warning"></i>
+                                        {% else %}
+                                            <i data-feather="activity" class="me-2 text-info"></i>
+                                        {% endif %}
+                                        {{ log.action }}
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge bg-{{ 'success' if log.status == 'success' else 'info' if log.status == 'info' else 'danger' }}">
+                                        {{ log.status.title() }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if log.details %}
+                                        <div class="small">{{ log.details }}</div>
+                                    {% else %}
+                                        <span class="text-muted">No additional details</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Pagination -->
+            {% if logs.pages > 1 %}
+                <div class="card-footer">
+                    <nav>
+                        <ul class="pagination pagination-sm justify-content-center mb-0">
+                            {% if logs.has_prev %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('logs', page=logs.prev_num, status=status_filter) }}">Previous</a>
+                                </li>
+                            {% endif %}
+                            
+                            {% for page_num in logs.iter_pages() %}
+                                {% if page_num %}
+                                    {% if page_num != logs.page %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="{{ url_for('logs', page=page_num, status=status_filter) }}">{{ page_num }}</a>
+                                        </li>
+                                    {% else %}
+                                        <li class="page-item active">
+                                            <span class="page-link">{{ page_num }}</span>
+                                        </li>
+                                    {% endif %}
+                                {% else %}
+                                    <li class="page-item disabled">
+                                        <span class="page-link">...</span>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if logs.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('logs', page=logs.next_num, status=status_filter) }}">Next</a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+            {% endif %}
+        {% else %}
+            <div class="text-center py-5">
+                <i data-feather="file-text" class="mb-3 text-muted" style="width: 3rem; height: 3rem;"></i>
+                <h5 class="text-muted">No activity logs found</h5>
+                <p class="text-muted">
+                    {% if status_filter %}
+                        No logs with status "{{ status_filter }}" found.
+                    {% else %}
+                        System activity will appear here once the bot starts running.
+                    {% endif %}
+                </p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Log Statistics -->
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i data-feather="bar-chart-2" class="me-2"></i>
+                    Activity Summary (Last 24 Hours)
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-3">
+                        <div class="border-end">
+                            <h4 class="text-success">{{ logs.total if status_filter == 'success' else '0' }}</h4>
+                            <small class="text-muted">Success Events</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="border-end">
+                            <h4 class="text-danger">{{ logs.total if status_filter == 'error' else '0' }}</h4>
+                            <small class="text-muted">Error Events</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="border-end">
+                            <h4 class="text-info">{{ logs.total if status_filter == 'info' else '0' }}</h4>
+                            <small class="text-muted">Info Events</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <h4 class="text-primary">{{ logs.total if not status_filter else '0' }}</h4>
+                        <small class="text-muted">Total Events</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

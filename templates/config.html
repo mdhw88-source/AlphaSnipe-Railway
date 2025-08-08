@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+
+{% block title %}Configuration - Alpha Sniper Bot{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1 class="h2 mb-0">
+            <i data-feather="settings" class="me-2"></i>
+            Bot Configuration
+        </h1>
+        <p class="text-muted">Manage bot settings and alert templates</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i data-feather="tool" class="me-2"></i>
+                    Configuration Settings
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('update_config') }}">
+                    <div class="mb-4">
+                        <label for="config_default_channel" class="form-label fw-bold">Default Channel ID</label>
+                        <input type="text" 
+                               class="form-control" 
+                               id="config_default_channel" 
+                               name="config_default_channel" 
+                               value="{{ configs | selectattr('key', 'equalto', 'default_channel') | map(attribute='value') | first | default('') }}"
+                               placeholder="123456789012345678">
+                        <div class="form-text">Default Discord channel for alerts when not specified</div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="config_alert_color" class="form-label fw-bold">Alert Embed Color</label>
+                        <select class="form-select" id="config_alert_color" name="config_alert_color">
+                            {% set current_color = configs | selectattr('key', 'equalto', 'alert_color') | map(attribute='value') | first | default('green') %}
+                            <option value="green" {% if current_color == 'green' %}selected{% endif %}>Green (#00FF00)</option>
+                            <option value="red" {% if current_color == 'red' %}selected{% endif %}>Red (#FF0000)</option>
+                            <option value="blue" {% if current_color == 'blue' %}selected{% endif %}>Blue (#0000FF)</option>
+                            <option value="yellow" {% if current_color == 'yellow' %}selected{% endif %}>Yellow (#FFFF00)</option>
+                            <option value="purple" {% if current_color == 'purple' %}selected{% endif %}>Purple (#800080)</option>
+                        </select>
+                        <div class="form-text">Color for Discord embed messages</div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="config_bot_name" class="form-label fw-bold">Bot Display Name</label>
+                        <input type="text" 
+                               class="form-control" 
+                               id="config_bot_name" 
+                               name="config_bot_name" 
+                               value="{{ configs | selectattr('key', 'equalto', 'bot_name') | map(attribute='value') | first | default('Alpha Sniper Bot') }}"
+                               placeholder="Alpha Sniper Bot">
+                        <div class="form-text">Name displayed in alert embeds</div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="config_alert_template" class="form-label fw-bold">Default Alert Template</label>
+                        <textarea class="form-control" 
+                                  id="config_alert_template" 
+                                  name="config_alert_template" 
+                                  rows="4"
+                                  placeholder="🚨 **{title}** 🚨\n\n{message}\n\n💰 **{symbol}**: ${price}">{{ configs | selectattr('key', 'equalto', 'alert_template') | map(attribute='value') | first | default('') }}</textarea>
+                        <div class="form-text">
+                            Template for alert messages. Use placeholders: {title}, {message}, {symbol}, {price}
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="config_max_alerts_per_minute" class="form-label fw-bold">Rate Limit (Alerts per minute)</label>
+                        <input type="number" 
+                               class="form-control" 
+                               id="config_max_alerts_per_minute" 
+                               name="config_max_alerts_per_minute" 
+                               value="{{ configs | selectattr('key', 'equalto', 'max_alerts_per_minute') | map(attribute='value') | first | default('10') }}"
+                               min="1" max="60">
+                        <div class="form-text">Maximum number of alerts that can be sent per minute</div>
+                    </div>
+
+                    <div class="mb-4">
+                        <div class="form-check">
+                            <input class="form-check-input" 
+                                   type="checkbox" 
+                                   id="config_auto_retry_failed" 
+                                   name="config_auto_retry_failed"
+                                   value="true"
+                                   {% if configs | selectattr('key', 'equalto', 'auto_retry_failed') | map(attribute='value') | first | default('false') == 'true' %}checked{% endif %}>
+                            <label class="form-check-label fw-bold" for="config_auto_retry_failed">
+                                Auto-retry Failed Alerts
+                            </label>
+                            <div class="form-text">Automatically retry sending failed alerts after 5 minutes</div>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <div class="form-check">
+                            <input class="form-check-input" 
+                                   type="checkbox" 
+                                   id="config_log_all_messages" 
+                                   name="config_log_all_messages"
+                                   value="true"
+                                   {% if configs | selectattr('key', 'equalto', 'log_all_messages') | map(attribute='value') | first | default('true') == 'true' %}checked{% endif %}>
+                            <label class="form-check-label fw-bold" for="config_log_all_messages">
+                                Log All Messages
+                            </label>
+                            <div class="form-text">Log all bot activities and Discord messages</div>
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <button type="submit" class="btn btn-primary">
+                            <i data-feather="save" class="me-1"></i>
+                            Save Configuration
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i data-feather="info" class="me-2"></i>
+                    Environment Variables
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Discord Token</label>
+                    <div class="input-group">
+                        <input type="password" class="form-control" value="{'•' * 20 if 'DISCORD_TOKEN' in request.environ else 'Not Set'}" readonly>
+                        <span class="input-group-text">
+                            {% if 'DISCORD_TOKEN' in request.environ %}
+                                <i data-feather="check" class="text-success"></i>
+                            {% else %}
+                                <i data-feather="x" class="text-danger"></i>
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div class="form-text">Required for Discord bot connection</div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Session Secret</label>
+                    <div class="input-group">
+                        <input type="password" class="form-control" value="{'•' * 20 if 'SESSION_SECRET' in request.environ else 'Not Set'}" readonly>
+                        <span class="input-group-text">
+                            {% if 'SESSION_SECRET' in request.environ %}
+                                <i data-feather="check" class="text-success"></i>
+                            {% else %}
+                                <i data-feather="x" class="text-danger"></i>
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div class="form-text">Required for web session security</div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Database URL</label>
+                    <div class="input-group">
+                        <input type="password" class="form-control" value="{'•' * 20 if 'DATABASE_URL' in request.environ else 'SQLite (default)'}" readonly>
+                        <span class="input-group-text">
+                            <i data-feather="check" class="text-success"></i>
+                        </span>
+                    </div>
+                    <div class="form-text">Database connection string</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i data-feather="help-circle" class="me-2"></i>
+                    Setup Guide
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="small">
+                    <h6>1. Discord Bot Setup</h6>
+                    <ol>
+                        <li>Go to Discord Developer Portal</li>
+                        <li>Create a new application</li>
+                        <li>Go to Bot section</li>
+                        <li>Copy the token and set DISCORD_TOKEN</li>
+                        <li>Enable required intents</li>
+                    </ol>
+
+                    <h6>2. Bot Permissions</h6>
+                    <p>Your bot needs these permissions:</p>
+                    <ul>
+                        <li>Send Messages</li>
+                        <li>Embed Links</li>
+                        <li>Read Message History</li>
+                    </ul>
+
+                    <h6>3. Getting Channel IDs</h6>
+                    <p>Enable Developer Mode in Discord, then right-click any channel and select "Copy ID".</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
