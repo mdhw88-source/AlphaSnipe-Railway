@@ -1,14 +1,27 @@
 # discord_bot.py (diagnostic)
 import os, requests, discord
 from discord.ext import commands
-
+from scanner import pick_new_pairs
+import asyncio
+BANKROLL = float(os.getenv("BANKROLL_DEFAULT", "5000"))
 TOKEN = os.getenv("DISCORD_TOKEN")
 # accept either name to avoid mismatch
 CHAN_ENV = os.getenv("DISCORD_CHANNEL_ID") or os.getenv("CHANNEL_ID")
 WEBHOOK_URL = os.getenv("WEBHOOK_URL", "")
 
 def n(x): return "✅" if x else "❌"
-
+async def scanner_loop():
+    await bot.wait_until_ready()
+    channel = bot.get_channel(CHANNEL_ID)
+    while not bot.is_closed():
+        try:
+            pairs = pick_new_pairs(BANKROLL)  # Calls your scanner logic
+            for p in pairs:
+                msg = f"🚨 Alpha Alert\n{p}"
+                await channel.send(msg)
+        except Exception as e:
+            print(f"[scanner_loop error] {e}")
+        await asyncio.sleep(60)  # wait 60 sec before next scan
 print(f"[diag] TOKEN present: {n(bool(TOKEN))}")
 print(f"[diag] CHANNEL env (DISCORD_CHANNEL_ID or CHANNEL_ID) present: {n(bool(CHAN_ENV))}")
 print(f"[diag] WEBHOOK_URL present: {n(bool(WEBHOOK_URL))}")
@@ -30,7 +43,9 @@ def webhook_send(text: str):
 @bot.event
 async def on_ready():
     from datetime import datetime
-    print(f"[diag] Logged in as {bot.user} (id: {bot.user.id})")
+    print(f"[diag] Logged in as {bot.user} 
+bot.loop.create_task(scanner_loop())
+          (id: {bot.user.id})")
     print(f"[diag] guilds: {[g.name for g in bot.guilds]}")
     
     # Update bot status in database
