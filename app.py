@@ -65,32 +65,39 @@ MAX_MC = 500_000
 MAX_AGE_MIN = 24*60
 MIN_LP = 15_000
 
-def ds_info(erc20_addr: str):
-    """Get DexScreener info for token analysis"""
+def ds_info_by_token(addr: str):
+    """Get DexScreener info for token analysis - works for SOL & EVM tokens"""
     try:
-        r = requests.get(f"https://api.dexscreener.com/latest/dex/tokens/{erc20_addr}", timeout=10)
+        # Works for SOL & EVM tokens; picks newest pair
+        r = requests.get(f"https://api.dexscreener.com/latest/dex/tokens/{addr}", timeout=12)
         if r.status_code != 200: 
             return None
         pairs = r.json().get("pairs") or []
         if not pairs: 
             return None
-        # Pick newest EVM pair
         p = sorted(pairs, key=lambda x: x.get("pairCreatedAt") or 0, reverse=True)[0]
         fdv = float(p.get("fdv") or 0)
         lp = float((p.get("liquidity") or {}).get("usd") or 0)
         created = p.get("pairCreatedAt") or int(time.time()*1000)
         age_min = int((time.time()*1000 - created)/60000)
+        base = p.get("baseToken") or {}
         return {
             "fdv": fdv, 
             "lp": lp, 
             "age_min": age_min,
-            "symbol": (p.get("baseToken") or {}).get("symbol") or "?",
-            "name": (p.get("baseToken") or {}).get("name") or "?",
-            "chart": p.get("url") or p.get("pairUrl") or ""
+            "symbol": base.get("symbol") or "?", 
+            "name": base.get("name") or "?",
+            "chart": p.get("url") or p.get("pairUrl") or "", 
+            "chain": p.get("chainId") or ""
         }
     except Exception as e:
-        print(f"[ds_info] Error fetching token data: {e}")
+        print(f"[ds_info_by_token] Error fetching token data: {e}")
         return None
+
+# Keep backward compatibility alias
+def ds_info(erc20_addr: str):
+    """Backward compatibility wrapper"""
+    return ds_info_by_token(erc20_addr)
 
 def is_runner(meta):
     """Check if token qualifies as a runner based on criteria"""
@@ -215,7 +222,7 @@ def alchemy_webhook():
                     
                     # Analyze token if we have an address
                     if token_addr:
-                        meta = ds_info(token_addr)
+                        meta = ds_info_by_token(token_addr)
                         if not is_runner(meta):
                             continue  # Skip low-signal whale transactions
                         

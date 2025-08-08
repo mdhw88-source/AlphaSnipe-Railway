@@ -23,6 +23,7 @@ Alpha Sniper Bot is a multi-chain cryptocurrency alert system that combines a Di
 - ✅ **High-Signal Filtering**: Only alerts on whale transactions involving qualifying runner tokens, eliminates noise
 - ✅ **Cross-Chain Whale Management**: Added Solana whale tracking helpers for unified multi-chain whale monitoring
 - ✅ **Production-Ready Deployment**: Complete multi-chain intelligence system ready for 24/7 operation
+- ✅ **Universal Token Analysis**: Enhanced DexScreener integration supports both Solana and Ethereum tokens
 
 # User Preferences
 
