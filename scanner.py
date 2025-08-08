@@ -3,6 +3,7 @@ import time, requests, os, re
 from fresh_pairs_scraper import scrape_fresh_pairs, get_fresh_pairs_enhanced
 from birdeye_scraper import get_combined_fresh_tokens
 from solana_scanner import get_runner_candidates
+from ethereum_scanner import get_ethereum_runner_candidates
 
 DEX_API = "https://api.dexscreener.com/latest/dex/search"
 CHAINS = ["solana", "ethereum"]  # Temporary, will be updated to use token profiles
@@ -42,13 +43,25 @@ def pick_new_pairs():
         last_reset = current_time
         print("[scanner] Cleared sent tokens cache (1 hour passed)")
     
-    # Try Solana runner candidates first, then fallback to other sources
+    # Try multi-chain runner candidates (Solana + Ethereum)
     try:
-        # Priority: Solana runner candidates
-        runner_candidates = get_runner_candidates(20)
-        if runner_candidates:
-            print(f"[scanner] Using Solana runner scanner: {len(runner_candidates)} candidates")
-            pairs_to_process = [('solana_runners', runner_candidates)]
+        all_candidates = []
+        
+        # Get Solana runner candidates
+        sol_candidates = get_runner_candidates(15)
+        if sol_candidates:
+            all_candidates.extend(sol_candidates)
+            print(f"[scanner] Got {len(sol_candidates)} Solana runner candidates")
+        
+        # Get Ethereum runner candidates
+        eth_candidates = get_ethereum_runner_candidates(15)
+        if eth_candidates:
+            all_candidates.extend(eth_candidates)
+            print(f"[scanner] Got {len(eth_candidates)} Ethereum runner candidates")
+        
+        if all_candidates:
+            print(f"[scanner] Using multi-chain runner scanner: {len(all_candidates)} total candidates")
+            pairs_to_process = [('multi_chain_runners', all_candidates)]
         else:
             # Fallback to combined alternative sources
             fresh_pairs = get_combined_fresh_tokens(15)
@@ -59,7 +72,7 @@ def pick_new_pairs():
                 print("[scanner] All fresh sources failed, using API")
                 pairs_to_process = [(chain, _pairs(chain)) for chain in CHAINS]
     except Exception as e:
-        print(f"[scanner] Runner scanner failed: {e}, trying alternatives")
+        print(f"[scanner] Multi-chain runner scanner failed: {e}, trying alternatives")
         try:
             fresh_pairs = get_combined_fresh_tokens(15)
             if fresh_pairs:
@@ -103,21 +116,38 @@ def pick_new_pairs():
             if filtered_pairs < 3:
                 print(f"[scanner] pair: {name} {symbol}, age: {age_min}min, lp: ${liquidity_usd}, mc: ${fdv}, runner_score: {runner_score}")
 
-            # Enhanced filters for runner potential
-            age_ok = age_min <= MAX_AGE_MIN
-            lp_ok = liquidity_usd >= MIN_LP
-            mc_ok = fdv <= MAX_MC
+            # Chain-specific filtering for different networks
+            chain_id = p.get('chainId', '').lower()
             
-            # Special handling for high runner score tokens
-            if runner_score >= 3:
-                # Relax filters for high-potential runners
-                age_ok = age_min <= 2880  # 48 hours for high-score tokens
-                lp_ok = liquidity_usd >= 1000  # Lower liquidity requirement
-                mc_ok = fdv <= 5000000  # Higher market cap allowed for runners
+            # Enhanced filters for runner potential with chain-specific adjustments
+            if chain_id == 'ethereum':
+                # Ethereum has higher costs, so different thresholds
+                base_age_limit = 180  # 3 hours for ETH (faster initial moves)
+                base_lp_limit = 10000  # $10K minimum liquidity for ETH
+                base_mc_limit = 10000000  # $10M max market cap for ETH
+                
+                if runner_score >= 3:
+                    age_limit = 1440  # 24 hours for high-score ETH tokens
+                    lp_limit = 5000  # Lower liquidity for runners
+                    mc_limit = 20000000  # Higher market cap for ETH runners
+                else:
+                    age_limit = base_age_limit
+                    lp_limit = base_lp_limit
+                    mc_limit = base_mc_limit
+            else:
+                # Solana (default) - original thresholds
+                if runner_score >= 3:
+                    age_limit = 2880  # 48 hours for high-score tokens
+                    lp_limit = 1000  # Lower liquidity requirement
+                    mc_limit = 5000000  # Higher market cap allowed for runners
+                else:
+                    age_limit = MAX_AGE_MIN
+                    lp_limit = MIN_LP
+                    mc_limit = MAX_MC
             
-            age_limit = 2880 if runner_score >= 3 else MAX_AGE_MIN
-            lp_limit = 1000 if runner_score >= 3 else MIN_LP
-            mc_limit = 5000000 if runner_score >= 3 else MAX_MC
+            age_ok = age_min <= age_limit
+            lp_ok = liquidity_usd >= lp_limit
+            mc_ok = fdv <= mc_limit
             
             print(f"[scanner] checking {name}: age={age_min}≤{age_limit}? {age_ok}, lp=${liquidity_usd}≥{lp_limit}? {lp_ok}, mc=${fdv}≤{mc_limit}? {mc_ok}, score={runner_score}")
             

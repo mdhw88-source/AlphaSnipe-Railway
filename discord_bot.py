@@ -64,8 +64,27 @@ async def scanner_loop():
                 mc_formatted = format_dollars(hit.get('market_cap', 0))
                 lp_formatted = format_dollars(hit.get('liquidity', 0))
                 
+                # Chain-specific formatting
+                chain = hit['chain'].upper()
+                is_solana = chain == 'SOLANA'
+                is_ethereum = chain == 'ETHEREUM'
+                
+                # Chain-specific links and formatting
+                if is_solana:
+                    explorer_link = f"[Token: `{hit['token'][:8]}...`](https://solscan.io/token/{hit['token']})"
+                    pump_link = f"• [Pump.fun](https://pump.fun/{hit['token']})\n"
+                    chain_emoji = "☀️"
+                elif is_ethereum:
+                    explorer_link = f"[Token: `{hit['token'][:8]}...`](https://etherscan.io/token/{hit['token']})"
+                    pump_link = f"• [Etherscan](https://etherscan.io/token/{hit['token']})\n"
+                    chain_emoji = "⛽"
+                else:
+                    explorer_link = f"Token: `{hit['token'][:8]}...`"
+                    pump_link = ""
+                    chain_emoji = "🔗"
+                
                 text = (
-                    f"🚨 **SOLANA RUNNER ALERT** 🚨\n\n"
+                    f"🚨 **{chain_emoji} {chain} RUNNER ALERT** 🚨\n\n"
                     f"🎯 **{hit['name']}** (${hit['symbol']})\n"
                     f"**Score:** {runner_score}/5 ⭐\n"
                     f"{potential}\n\n"
@@ -76,10 +95,10 @@ async def scanner_loop():
                     f"• Age: {age_str}\n\n"
                     f"🔗 **LINKS**\n"
                     f"• [Chart]({hit['chart']})\n"
-                    f"• [Token: `{hit['token'][:8]}...`](https://solscan.io/token/{hit['token']})\n"
-                    f"• [Pump.fun](https://pump.fun/{hit['token']})\n\n"
-                    f"**Chain:** {hit['chain'].upper()}\n"
-                    f"**Why This Matters:** Fresh Solana token with runner characteristics detected by multi-source analysis"
+                    f"• {explorer_link}\n"
+                    f"{pump_link}\n"
+                    f"**Chain:** {chain}\n"
+                    f"**Why This Matters:** Fresh {chain.lower()} token with runner characteristics detected by multi-source analysis"
                 )
                 if ch: 
                     await ch.send(text)
