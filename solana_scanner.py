@@ -182,50 +182,136 @@ def calculate_runner_score_birdeye(token):
 
 def calculate_runner_score_dex(pair):
     """
-    Calculate runner score for DexScreener pairs
+    Enhanced runner score with momentum, volume, and timing analysis
     """
     score = 0
     
-    # Price change
-    price_change = pair.get('priceChange', {})
-    change_1h = price_change.get('h1', 0) or 0
-    change_24h = price_change.get('h24', 0) or 0
-    
-    if change_1h > 50:
-        score += 3
-    elif change_1h > 20:
-        score += 2
-    elif change_1h > 10:
-        score += 1
-    
-    # Liquidity growth indicates interest
-    liquidity = pair.get('liquidity', {}).get('usd', 0)
-    if 50000 < liquidity < 200000:  # Sweet spot
-        score += 2
-    elif liquidity > 20000:
-        score += 1
-    
-    # Transaction activity
-    txns = pair.get('txns', {})
-    if isinstance(txns, dict):
-        h1_buys = txns.get('h1', {}).get('buys', 0) or 0
-        if h1_buys > 100:
+    try:
+        # Core metrics
+        fdv = float(pair.get('fdv', 0) or pair.get('marketCap', 0))
+        liquidity_usd = float(pair.get('liquidity', {}).get('usd', 0))
+        volume_24h = float(pair.get('volume', {}).get('h24', 0))
+        volume_6h = float(pair.get('volume', {}).get('h6', 0))
+        
+        # Price change analysis (enhanced)
+        price_change = pair.get('priceChange', {})
+        change_5m = float(price_change.get('m5', 0) or 0)
+        change_1h = float(price_change.get('h1', 0) or 0)
+        change_6h = float(price_change.get('h6', 0) or 0)
+        change_24h = float(price_change.get('h24', 0) or 0)
+        
+        # Age calculation
+        created_timestamp = pair.get('pairCreatedAt', 0)
+        current_time = time.time() * 1000
+        age_hours = (current_time - created_timestamp) / 3600000 if created_timestamp else 999
+        
+        # 1. Market Cap Scoring (optimized for runners)
+        if 5000 <= fdv <= 300000:  # $5K-$300K prime runner zone
+            score += 2.5
+        elif 300000 < fdv <= 1000000:  # $300K-$1M good potential
             score += 2
-        elif h1_buys > 50:
+        elif 1000000 < fdv <= 3000000:  # $1M-$3M still viable
             score += 1
+        
+        # 2. Liquidity Scoring (enhanced standards)
+        if liquidity_usd >= 50000:  # $50K+ excellent liquidity
+            score += 2
+        elif liquidity_usd >= 20000:  # $20K+ good liquidity
+            score += 1.5
+        elif liquidity_usd >= 5000:  # $5K+ decent liquidity
+            score += 1
+        
+        # 3. Fresh Token Age Bonus (critical for early detection)
+        if age_hours <= 0.25:  # 15 minutes - ULTRA FRESH
+            score += 2.5
+        elif age_hours <= 1:  # 1 hour - VERY FRESH
+            score += 2
+        elif age_hours <= 6:  # 6 hours - FRESH
+            score += 1.5
+        elif age_hours <= 24:  # 24 hours - Recent
+            score += 1
+        
+        # 4. Momentum Analysis (price action)
+        momentum_score = 0
+        if change_5m > 10:  # 10%+ in 5 minutes
+            momentum_score += 1.5
+        elif change_5m > 5:  # 5%+ in 5 minutes
+            momentum_score += 1
+        
+        if change_1h > 25:  # 25%+ in 1 hour
+            momentum_score += 1.5
+        elif change_1h > 10:  # 10%+ in 1 hour
+            momentum_score += 1
+        
+        if change_6h > 50:  # 50%+ in 6 hours
+            momentum_score += 1
+        elif change_6h > 20:  # 20%+ in 6 hours
+            momentum_score += 0.5
+        
+        score += min(momentum_score, 2)  # Cap momentum bonus
+        
+        # 5. Volume Analysis
+        if volume_24h > 0 and liquidity_usd > 0:
+            vol_liq_ratio = volume_24h / liquidity_usd
+            if vol_liq_ratio > 3:  # Very high activity
+                score += 1.5
+            elif vol_liq_ratio > 1:  # Good activity
+                score += 1
+            elif vol_liq_ratio > 0.3:  # Decent activity
+                score += 0.5
+        
+        # 6. Volume Acceleration (6h trend vs 24h average)
+        if volume_6h > 0 and volume_24h > 0:
+            vol_acceleration = (volume_6h * 4) / volume_24h
+            if vol_acceleration > 2:  # Accelerating volume
+                score += 1
+            elif vol_acceleration > 1.3:  # Growing volume
+                score += 0.5
+        
+        # 7. Transaction Activity
+        txns = pair.get('txns', {})
+        if isinstance(txns, dict):
+            h1_data = txns.get('h1', {})
+            h6_data = txns.get('h6', {})
+            
+            h1_buys = h1_data.get('buys', 0) or 0
+            h1_sells = h1_data.get('sells', 0) or 0
+            
+            # Buy pressure analysis
+            if h1_buys > 0 and h1_sells > 0:
+                buy_ratio = h1_buys / (h1_buys + h1_sells)
+                if buy_ratio > 0.7:  # Strong buy pressure
+                    score += 1
+                elif buy_ratio > 0.6:  # Good buy pressure
+                    score += 0.5
+            
+            # Transaction volume
+            if h1_buys > 150:
+                score += 1.5
+            elif h1_buys > 75:
+                score += 1
+            elif h1_buys > 25:
+                score += 0.5
+        
+        # Cap at 5
+        score = min(5, score)
+        
+    except Exception as e:
+        print(f"[enhanced_runner_score] Error: {e}")
+        score = 0
     
-    return score
+    return round(score, 1)
 
-def get_runner_candidates(max_tokens=20):
+def get_runner_candidates(max_tokens=25):
     """
-    Get the best runner candidates from all Solana sources
+    Enhanced multi-source runner detection with increased coverage
     """
     all_tokens = []
     
     sources = [
-        ("pump.fun", get_pump_fun_tokens, 10),
-        ("birdeye", get_birdeye_trending_solana, 8),
-        ("dexscreener", get_dexscreener_new_solana_pairs, 7)
+        ("pump.fun", get_pump_fun_tokens, 15),  # Increased for more early detection
+        ("birdeye", get_birdeye_trending_solana, 12),  # More trending tokens
+        ("dexscreener", get_dexscreener_new_solana_pairs, 10)  # More fresh pairs
     ]
     
     for source_name, source_func, limit in sources:

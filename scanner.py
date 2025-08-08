@@ -7,9 +7,9 @@ from ethereum_scanner import get_ethereum_runner_candidates
 
 DEX_API = "https://api.dexscreener.com/latest/dex/search"
 CHAINS = ["solana", "ethereum"]  # Temporary, will be updated to use token profiles
-MIN_LP = 3000       # USD (sync with discord_bot.py)
-MAX_MC = 1_500_000  # Back to original target (sync with discord_bot.py)
-MAX_AGE_MIN = 60    # Fresh pairs should be within 1 hour (sync with discord_bot.py)
+MIN_LP = 2000       # USD - Lowered to catch earlier opportunities
+MAX_MC = 2_500_000  # Increased for potential runners (sync with discord_bot.py)
+MAX_AGE_MIN = 120   # Extended to 2 hours for early detection (sync with discord_bot.py)
 MIN_HOLDERS = 0     # (sync with discord_bot.py)
 
 NARRATIVE = re.compile(r".*", re.I)  # Temporarily match all tokens for testing
