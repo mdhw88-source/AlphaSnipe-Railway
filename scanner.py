@@ -74,7 +74,8 @@ def pick_new_pairs():
         print(f"[scanner] {source}: fetched {len(pairs)} pairs")
         
         for p in pairs:
-            pair_id = p.get("pairAddress") or p.get("pairCreatedAt")
+            pair_addr = p.get("pairAddress", "")
+            pair_id = pair_addr or p.get("pairCreatedAt")
             if not pair_id or pair_id in seen:
                 continue
             
@@ -134,7 +135,10 @@ def pick_new_pairs():
                 filtered_pairs += 1
                 print(f"[scanner] ✅ MATCH: {name} {symbol}")
                 
-                # craft alert data
+                # craft enhanced alert data with detailed information
+                base_token = p.get("baseToken", {}) or {}
+                token_address = base_token.get("address", "") or pair_addr
+                
                 res = {
                     "chain": p.get("chainId", source).title(),
                     "name": name or symbol,
@@ -143,7 +147,17 @@ def pick_new_pairs():
                     "lp": f"${int(liquidity_usd):,}",
                     "holders": holders,
                     "chart": p.get("url") or p.get("pairUrl"),
-                    "token": (p.get("baseToken", {}) or {}).get("address", ""),
+                    "token": token_address,
+                    "pair_address": pair_addr,
+                    "age_minutes": age_min,
+                    "runner_score": runner_score,
+                    "market_cap": fdv,
+                    "liquidity": liquidity_usd,
+                    "price_change_1h": p.get("priceChange", {}).get("h1", 0) if isinstance(p.get("priceChange"), dict) else 0,
+                    "price_change_24h": p.get("priceChange", {}).get("h24", 0) if isinstance(p.get("priceChange"), dict) else 0,
+                    "volume_24h": p.get("volume", {}).get("h24", 0) if isinstance(p.get("volume"), dict) else 0,
+                    "dex_url": p.get("url", ""),
+                    "source": p.get("source", source),
                 }
                 results.append(res)
             else:

@@ -30,13 +30,56 @@ async def scanner_loop():
     while not bot.is_closed():
         try:
             for hit in pick_new_pairs():
+                # Enhanced message with much more detail
+                runner_score = hit.get('runner_score', 0)
+                age_min = hit.get('age_minutes', 0)
+                
+                # Format age properly
+                if age_min < 60:
+                    age_str = f"{int(age_min)}m"
+                elif age_min < 1440:
+                    age_str = f"{int(age_min/60)}h {int(age_min%60)}m"
+                else:
+                    age_str = f"{int(age_min/1440)}d {int((age_min%1440)/60)}h"
+                
+                # Runner potential indicators
+                if runner_score >= 4:
+                    potential = "🔥 HIGH RUNNER POTENTIAL"
+                elif runner_score >= 3:
+                    potential = "⚡ GOOD RUNNER POTENTIAL"
+                elif runner_score >= 2:
+                    potential = "📈 MODERATE POTENTIAL"
+                else:
+                    potential = "👀 MONITORING"
+                
+                # Enhanced market data formatting
+                def format_dollars(amount):
+                    if amount >= 1000000:
+                        return f"${amount/1000000:.2f}M"
+                    elif amount >= 1000:
+                        return f"${amount/1000:.1f}K"
+                    else:
+                        return f"${amount:.0f}"
+                
+                mc_formatted = format_dollars(hit.get('market_cap', 0))
+                lp_formatted = format_dollars(hit.get('liquidity', 0))
+                
                 text = (
-                    "🧪 **Fresh Deploy Alert**\n"
-                    f"${hit['symbol']} | {hit['chain']}\n"
-                    f"MC: {hit['mc']} | LP: {hit['lp']} | Holders: {hit['holders']}\n"
-                    f"Chart: {hit['chart']}\n"
-                    f"Token: `{hit['token']}`\n"
-                    f"💰 If you invested ${int(BANKROLL):,}: P/L line coming"
+                    f"🚨 **SOLANA RUNNER ALERT** 🚨\n\n"
+                    f"🎯 **{hit['name']}** (${hit['symbol']})\n"
+                    f"**Score:** {runner_score}/5 ⭐\n"
+                    f"{potential}\n\n"
+                    f"💰 **MARKET DATA**\n"
+                    f"• Market Cap: {mc_formatted}\n"
+                    f"• Liquidity: {lp_formatted}\n"
+                    f"• Holders: {hit['holders']:,}\n"
+                    f"• Age: {age_str}\n\n"
+                    f"🔗 **LINKS**\n"
+                    f"• [Chart]({hit['chart']})\n"
+                    f"• [Token: `{hit['token'][:8]}...`](https://solscan.io/token/{hit['token']})\n"
+                    f"• [Pump.fun](https://pump.fun/{hit['token']})\n\n"
+                    f"**Chain:** {hit['chain'].upper()}\n"
+                    f"**Why This Matters:** Fresh Solana token with runner characteristics detected by multi-source analysis"
                 )
                 if ch: 
                     await ch.send(text)
