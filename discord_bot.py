@@ -120,6 +120,16 @@ async def scanner_loop():
                         await message.add_reaction("🚀")  # Bullish
                         await message.add_reaction("📉")  # Bearish  
                         await message.add_reaction("🤔")  # Uncertain
+                        
+                        # Enhanced data for Solana tokens using Helius
+                        if hit['chain'].lower() == 'solana':
+                            try:
+                                from helius_integration import get_enhanced_solana_data
+                                enhanced_data = get_enhanced_solana_data(hit['token'])
+                                if enhanced_data.get('risk_flags'):
+                                    print(f"[helius] Risk flags for {hit['symbol']}: {enhanced_data['risk_flags']}")
+                            except Exception as e:
+                                print(f"[helius] Error getting enhanced data: {e}")
                     except Exception as e:
                         print(f"[sentiment_tracker] Error registering alert or adding reactions: {e}")
                 webhook_send(text)
