@@ -54,6 +54,88 @@ async def alert(ctx, token: str="SIMPS", chain: str="Solana",
     await ctx.send(text)
     webhook_send(text)
 
+def get_bot_instance():
+    """Get the bot instance for use in Flask routes"""
+    return bot
+
+async def send_alert(alert_id):
+    """Send an alert via Discord bot"""
+    from models import Alert, ActivityLog
+    from app import db
+    from datetime import datetime
+    
+    alert = Alert.query.get(alert_id)
+    if not alert:
+        return False
+    
+    try:
+        # Format the alert message
+        message = f"🚨 **{alert.title}**\n{alert.message}"
+        if alert.symbol:
+            message += f"\nSymbol: {alert.symbol}"
+        if alert.price:
+            message += f"\nPrice: ${alert.price:,.2f}"
+        
+        # Send via Discord API
+        if CHANNEL_ID and bot.is_ready():
+            channel = bot.get_channel(int(alert.channel_id) if alert.channel_id.isdigit() else CHANNEL_ID)
+            if channel:
+                await channel.send(message)
+                
+                # Update alert status
+                alert.status = 'sent'
+                alert.sent_at = datetime.utcnow()
+                
+                # Log activity
+                log = ActivityLog(
+                    action=f"Alert sent: {alert.title}",
+                    details=f"Sent to channel {alert.channel_id}",
+                    status='success'
+                )
+                db.session.add(log)
+                db.session.commit()
+                
+                print(f"[diag] Alert {alert_id} sent successfully")
+                return True
+            else:
+                raise Exception(f"Channel {alert.channel_id} not found")
+        
+        # Fallback to webhook
+        if WEBHOOK_URL:
+            webhook_send(message)
+            alert.status = 'sent'
+            alert.sent_at = datetime.utcnow()
+            
+            log = ActivityLog(
+                action=f"Alert sent via webhook: {alert.title}",
+                details="Sent via webhook fallback",
+                status='success'
+            )
+            db.session.add(log)
+            db.session.commit()
+            
+            print(f"[diag] Alert {alert_id} sent via webhook")
+            return True
+        
+        raise Exception("No valid sending method available")
+        
+    except Exception as e:
+        # Update alert with error
+        alert.status = 'failed'
+        alert.error_message = str(e)
+        
+        # Log error
+        log = ActivityLog(
+            action=f"Alert failed: {alert.title}",
+            details=str(e),
+            status='error'
+        )
+        db.session.add(log)
+        db.session.commit()
+        
+        print(f"[diag] Alert {alert_id} failed: {e}")
+        return False
+
 async def run_discord_bot():
     if not TOKEN:
         raise RuntimeError("Missing DISCORD_TOKEN secret")
