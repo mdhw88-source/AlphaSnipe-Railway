@@ -13,24 +13,38 @@ MIN_LP = 3000
 MAX_MC = 1_500_000
 MAX_AGE_MIN = 60
 MIN_HOLDERS = 0
+BANKROLL = float(os.getenv("BANKROLL_DEFAULT", "5000"))
+BANKROLL = float(os.getenv("BANKROLL_DEFAULT", "5000"))
 
 def n(x): return "✅" if x else "❌"
 
 async def scanner_loop():
     """Background task to scan for crypto opportunities"""
+    from scanner import pick_new_pairs
+    
     await bot.wait_until_ready()
+    ch = bot.get_channel(CHANNEL_ID) if CHANNEL_ID else None
     print(f"[diag] Scanner loop started with criteria: MIN_LP={MIN_LP}, MAX_MC={MAX_MC:,}, MAX_AGE_MIN={MAX_AGE_MIN}, MIN_HOLDERS={MIN_HOLDERS}")
+    print(f"[diag] BANKROLL set to ${int(BANKROLL):,}")
     
     while not bot.is_closed():
         try:
-            # This is where you would implement your crypto scanning logic
-            # The scanner would use the configuration constants defined above
-            print(f"[diag] Scanner loop iteration (criteria: LP≥{MIN_LP}, MC≤{MAX_MC:,}, age≤{MAX_AGE_MIN}min, holders≥{MIN_HOLDERS})")
-            
+            for hit in pick_new_pairs():
+                text = (
+                    "🧪 **Fresh Deploy Alert**\n"
+                    f"${hit['symbol']} | {hit['chain']}\n"
+                    f"MC: {hit['mc']} | LP: {hit['lp']} | Holders: {hit['holders']}\n"
+                    f"Chart: {hit['chart']}\n"
+                    f"Token: `{hit['token']}`\n"
+                    f"💰 If you invested ${int(BANKROLL):,}: P/L line coming"
+                )
+                if ch: 
+                    await ch.send(text)
+                webhook_send(text)
         except Exception as e:
-            print(f"[diag] Scanner loop error: {e}")
+            print("[scanner_loop]", e)
         
-        await asyncio.sleep(60)  # Wait 60 seconds before next scan
+        await asyncio.sleep(20)  # gentle poll for free tier
 print(f"[diag] TOKEN present: {n(bool(TOKEN))}")
 print(f"[diag] CHANNEL env (DISCORD_CHANNEL_ID or CHANNEL_ID) present: {n(bool(CHAN_ENV))}")
 print(f"[diag] WEBHOOK_URL present: {n(bool(WEBHOOK_URL))}")
