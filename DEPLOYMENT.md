@@ -17,7 +17,12 @@
 3. **Set Start Command**
    In Settings → Deployments, set the Start Command to:
    ```
-   python main.py
+   gunicorn app:app
+   ```
+   
+   **Note:** This runs only the Flask web server. For Discord bot functionality, use:
+   ```
+   gunicorn main:app
    ```
 
 4. **Database Configuration**
