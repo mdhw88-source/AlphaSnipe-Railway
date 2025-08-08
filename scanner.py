@@ -1,12 +1,12 @@
 # scanner.py
 import time, requests, os, re
 
-DEX_API = "https://api.dexscreener.com/latest/dex/pairs"
+DEX_API = "https://api.dexscreener.com/latest/dex/search"
 CHAINS = ["solana", "ethereum"]  # extend later
-MIN_LP = 10000      # USD
-MAX_MC = 500_000    # USD
-MAX_AGE_MIN = 30
-MIN_HOLDERS = 100
+MIN_LP = 3000       # USD (sync with discord_bot.py)
+MAX_MC = 1_500_000  # USD (sync with discord_bot.py)
+MAX_AGE_MIN = 60    # (sync with discord_bot.py)
+MIN_HOLDERS = 0     # (sync with discord_bot.py)
 
 NARRATIVE = re.compile(r"(pepe|simps?|simpson|bart|trump|ai|milady|remilio|doge|cat|popcat|wif)", re.I)
 
@@ -14,11 +14,11 @@ seen = set()
 
 def _pairs(chain):
     # Dexscreener “latest pairs” by chain
-    url = f"{DEX_API}/{chain}"
+    url = f"{DEX_API}?q={chain}"
     try:
-        r = requests.get(url, timeout=10)
+        r = requests.get(url, timeout=10, headers={"User-Agent": "Mozilla/5.0"})
         r.raise_for_status()
-        return r.json().get("pairs", [])[:200]
+        return r.json().get("pairs", [])[:50]  # reduced to be API-friendly
     except Exception as e:
         print("[scanner] fetch error:", e)
         return []
