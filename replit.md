@@ -1,6 +1,13 @@
 # Overview
 
-Alpha Sniper Bot is a cryptocurrency alert system that combines a Discord bot with a Flask web dashboard. The application allows users to create, manage, and send cryptocurrency alerts through Discord channels while providing a comprehensive web interface for monitoring bot status, managing alerts, and viewing activity logs.
+Alpha Sniper Bot is a cryptocurrency alert system that combines a Discord bot with a Flask web dashboard. The application automatically scans multiple data sources for fresh cryptocurrency opportunities and sends real-time alerts to Discord channels. It features comprehensive duplicate prevention, rate limiting, and a web interface for monitoring bot status and activity logs.
+
+## Recent Changes (August 2025)
+- ✅ **Fresh Token Detection System**: Implemented multi-source scanner using CoinGecko, Birdeye, and Solscan APIs for truly fresh opportunities
+- ✅ **Smart Duplicate Prevention**: Added token tracking system that prevents spam while allowing fresh alerts every hour
+- ✅ **Rate Limiting**: Fixed rapid-fire duplicate alerts issue with proper cooldown mechanisms
+- ✅ **Enhanced Filtering**: Optimized for small-cap tokens under $1.5M market cap with proper age and liquidity filters
+- ✅ **Production Ready**: Bot successfully delivering unique crypto alerts every 20 seconds to Discord webhook
 
 # User Preferences
 
