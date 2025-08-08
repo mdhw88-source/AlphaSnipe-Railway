@@ -18,5 +18,5 @@ if __name__ == "__main__":
     
     # Production server configuration with dynamic port
     import os
-    app_port = int(os.getenv("PORT", "5000"))
-    app.run(host="0.0.0.0", port=app_port, debug=False, use_reloader=False)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
