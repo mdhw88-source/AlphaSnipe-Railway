@@ -8,7 +8,7 @@ MAX_MC = 1_500_000  # USD (sync with discord_bot.py)
 MAX_AGE_MIN = 60    # (sync with discord_bot.py)
 MIN_HOLDERS = 0     # (sync with discord_bot.py)
 
-NARRATIVE = re.compile(r"(pepe|simps?|simpson|bart|trump|ai|milady|remilio|doge|cat|popcat|wif)", re.I)
+NARRATIVE = re.compile(r".*", re.I)  # Temporarily match all tokens for testing
 
 seen = set()
 
@@ -39,7 +39,7 @@ def pick_new_pairs():
             name = (p.get("baseToken", {}) or {}).get("name", "")
             symbol = base_symbol or name
 
-            # basic filters
+            # basic filters (relaxed for testing)
             if age_min <= MAX_AGE_MIN and liquidity_usd >= MIN_LP and fdv <= MAX_MC:
                 if holders < MIN_HOLDERS:
                     continue
