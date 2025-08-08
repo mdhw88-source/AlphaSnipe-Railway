@@ -63,6 +63,41 @@ python main.py
 gunicorn main:app --bind 0.0.0.0:$PORT
 ```
 
+## Render Deployment Failure Troubleshooting
+
+If your deployment fails, check these common issues:
+
+**1. Missing Environment Variables**
+Ensure these are set in Render dashboard Environment section:
+- `DISCORD_TOKEN` (Required - get from Discord Developer Portal)
+- `DISCORD_CHANNEL_ID` (Required - Discord channel for alerts)
+- `SESSION_SECRET` (Required - generate random string)
+- `DATABASE_URL` (Auto-set by Render PostgreSQL addon)
+- `ALCHEMY_API_KEY` (Optional - for Ethereum features)
+- `HELIUS_API_KEY` (Optional - for Solana features)
+
+**2. Service Configuration**
+- Runtime: `Python 3`
+- Build Command: `pip install -r requirements.txt && pip install gunicorn`
+- Start Command: `python main.py`
+
+**3. Database Setup**
+- Add PostgreSQL addon in Render dashboard
+- Ensure DATABASE_URL is automatically set
+
+**4. Port Binding Issues**
+Your app correctly uses PORT environment variable:
+```python
+port = int(os.environ.get("PORT", 5000))
+app.run(host="0.0.0.0", port=port)
+```
+
+**5. Discord Token Issues**
+If Discord connection fails:
+- Verify bot token is correct and active
+- Ensure bot has proper permissions in your Discord server
+- Check bot is invited to the correct server/channel
+
 ## Environment Variables Details
 
 ### Required
