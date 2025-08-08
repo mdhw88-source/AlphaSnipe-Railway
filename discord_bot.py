@@ -107,29 +107,35 @@ async def alert(ctx, token: str="SIMPS", chain: str="Solana",
 
 @bot.command()
 async def scan(ctx):
-    """Manually scan DexScreener and post up to 3 matches"""
-    try:
-        # Import the scanning function
-        from scanner import pick_new_pairs
-        
-        hits = pick_new_pairs()
-        await ctx.send(f"🔎 Scan found {len(hits)} candidates")
-        
-        for h in hits[:3]:
-            msg = (
-                "🧪 **Fresh Deploy Alert**\n"
-                f"${h['symbol']} | {h['chain']}\n"
-                f"MC: {h['mc']} | LP: {h['lp']} | Holders: {h['holders']}\n"
-                f"Chart: {h['chart'] or 'N/A'}\n"
-                f"Token: `{h['token']}`"
-            )
-            await ctx.send(msg)
-            
-    except ImportError:
-        await ctx.send("❌ Scanner module not found. Please ensure the scanner.py file is available.")
-    except Exception as e:
-        await ctx.send(f"❌ Error during scan: {str(e)}")
-        print(f"[diag] Scan command error: {e}")
+    """Raw test: fetch newest pairs directly from DexScreener (no filters)."""
+    import requests
+
+    hits = []
+    for chain in ["solana", "ethereum"]:
+        url = f"https://api.dexscreener.com/latest/dex/pairs/{chain}"
+        try:
+            r = requests.get(url, timeout=10, headers={"User-Agent": "Mozilla/5.0"})
+            await ctx.send(f"{chain} HTTP {r.status_code}")
+            data = r.json()
+            pairs = data.get("pairs", [])[:3]  # just first 3
+            for p in pairs:
+                base = (p.get("baseToken") or {})
+                symbol = base.get("symbol") or base.get("name") or "?"
+                name = base.get("name") or symbol
+                fdv = p.get("fdv")
+                lp = (p.get("liquidity") or {}).get("usd")
+                link = p.get("url") or p.get("pairUrl") or "N/A"
+                await ctx.send(
+                    f"🧪 {chain.title()}: {name} ({symbol})\n"
+                    f"MC: {('n/a' if not fdv else '$'+str(int(fdv)))} | "
+                    f"LP: {('n/a' if not lp else '$'+str(int(lp)))}\n"
+                    f"{link}"
+                )
+            hits.extend(pairs)
+        except Exception as e:
+            await ctx.send(f"{chain} error: {e}")
+
+    await ctx.send(f"🔎 Raw scan returned {len(hits)} total pairs")
 
 def get_bot_instance():
     """Get the bot instance for use in Flask routes"""
