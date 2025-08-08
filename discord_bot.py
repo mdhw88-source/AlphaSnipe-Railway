@@ -126,8 +126,27 @@ async def scanner_loop():
                             try:
                                 from helius_integration import get_enhanced_solana_data
                                 enhanced_data = get_enhanced_solana_data(hit['token'])
-                                if enhanced_data.get('risk_flags'):
-                                    print(f"[helius] Risk flags for {hit['symbol']}: {enhanced_data['risk_flags']}")
+                                if enhanced_data and enhanced_data.get('risk_flags'):
+                                    risk_flags = enhanced_data['risk_flags']
+                                    print(f"[helius] Risk flags for {hit['symbol']}: {risk_flags}")
+                                    
+                                    # Add risk warning to message if critical risks detected
+                                    if any(flag in ['HIGH_WHALE_CONCENTRATION', 'LOW_HOLDER_COUNT'] for flag in risk_flags):
+                                        warning_msg = f"\n⚠️ **Risk Warning**: {', '.join(risk_flags).replace('_', ' ').lower()}"
+                                        # Send follow-up message with risk analysis
+                                        await ch.send(f"🔍 **Helius Risk Analysis for {hit['symbol']}**{warning_msg}")
+                                        
+                                if enhanced_data and enhanced_data.get('holder_count'):
+                                    holder_count = enhanced_data['holder_count']
+                                    whale_conc = enhanced_data.get('whale_concentration', 0)
+                                    print(f"[helius] {hit['symbol']}: {holder_count} holders, whale concentration: {whale_conc:.1f}%")
+                                    
+                                    # Add Helius insights to the main alert message
+                                    if holder_count > 0:
+                                        helius_insight = f"\n🔍 **Helius**: {holder_count:,} holders, {whale_conc:.1f}% whale concentration"
+                                        if risk_flags:
+                                            helius_insight += f" | ⚠️ {len(risk_flags)} risk flags"
+                                        await ch.send(f"📊 **Enhanced Analysis for {hit['symbol']}**{helius_insight}")
                             except Exception as e:
                                 print(f"[helius] Error getting enhanced data: {e}")
                     except Exception as e:
@@ -339,6 +358,65 @@ async def sentiment_analysis(ctx, token: str = None):
         
     except Exception as e:
         await ctx.send(f"Error getting sentiment analysis: {e}")
+
+@bot.command(name='analyze')
+async def helius_analyze(ctx, token_address: str = None):
+    """Deep analysis of Solana token using Helius: !analyze <token_address>"""
+    if not token_address:
+        await ctx.send("Usage: `!analyze <solana_token_address>`")
+        return
+    
+    try:
+        from helius_integration import get_enhanced_solana_data, is_helius_available
+        
+        if not is_helius_available():
+            await ctx.send("Helius API not available for enhanced analysis")
+            return
+        
+        await ctx.send(f"🔍 Analyzing {token_address[:8]}... (using Helius)")
+        
+        enhanced_data = get_enhanced_solana_data(token_address)
+        
+        if not enhanced_data:
+            await ctx.send("Could not retrieve enhanced data for this token")
+            return
+        
+        # Format comprehensive analysis
+        response = f"🔬 **Helius Deep Analysis**\n\n"
+        
+        if enhanced_data.get('metadata'):
+            metadata = enhanced_data['metadata']
+            response += f"🏷️ **Token Info**\n"
+            response += f"• Name: {enhanced_data.get('name', 'Unknown')}\n"
+            response += f"• Symbol: {enhanced_data.get('symbol', 'UNK')}\n"
+            response += f"• Verified: {'✅' if enhanced_data.get('verified', False) else '❌'}\n\n"
+        
+        response += f"👥 **Holder Analysis**\n"
+        response += f"• Total Holders: {enhanced_data.get('holder_count', 0):,}\n"
+        response += f"• Whale Concentration: {enhanced_data.get('whale_concentration', 0):.1f}%\n\n"
+        
+        risk_flags = enhanced_data.get('risk_flags', [])
+        if risk_flags:
+            response += f"⚠️ **Risk Flags**\n"
+            for flag in risk_flags:
+                response += f"• {flag.replace('_', ' ').title()}\n"
+        else:
+            response += f"✅ **Risk Assessment**: No major flags detected\n"
+        
+        response += f"\n🎯 **Investment Signal**: "
+        if enhanced_data.get('whale_concentration', 0) > 80:
+            response += "🔴 High Risk (Whale Dominated)"
+        elif enhanced_data.get('holder_count', 0) < 50:
+            response += "🟡 Medium Risk (Low Holders)"
+        elif len(risk_flags) == 0:
+            response += "🟢 Low Risk (Good Distribution)"
+        else:
+            response += "🟡 Medium Risk (Some Concerns)"
+        
+        await ctx.send(response)
+        
+    except Exception as e:
+        await ctx.send(f"Error analyzing token: {e}")
 
 @bot.event
 async def on_reaction_add(reaction, user):
