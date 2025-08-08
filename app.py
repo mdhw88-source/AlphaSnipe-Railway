@@ -73,10 +73,18 @@ def alchemy_webhook():
         value     = a.get("value") or a.get("rawContract", {}).get("value")
         hash_     = a.get("hash") or a.get("transactionHash")
 
-        # Alert only if a watched address is involved
-        if is_tracked_whale("ethereum", to_addr) or is_tracked_whale("ethereum", from_addr):
-            direction = "BUY" if is_tracked_whale("ethereum", to_addr) else "SELL"
-            whale_addr = to_addr if direction == "BUY" else from_addr
+        # Alert only if a watched address is involved (check both whale tracking systems)
+        from discord_bot import _load_eth
+        tracked_eth_simple = _load_eth()
+        
+        if (is_tracked_whale("ethereum", to_addr) or is_tracked_whale("ethereum", from_addr) or
+            to_addr in tracked_eth_simple or from_addr in tracked_eth_simple):
+            # Determine direction based on which system tracked the whale
+            is_tracked_to = is_tracked_whale("ethereum", to_addr) or to_addr in tracked_eth_simple
+            is_tracked_from = is_tracked_whale("ethereum", from_addr) or from_addr in tracked_eth_simple
+            
+            direction = "BUY" if is_tracked_to else "SELL"
+            whale_addr = to_addr if is_tracked_to else from_addr
             
             alert_msg = whale_tracker.format_whale_alert(
                 chain="ethereum",

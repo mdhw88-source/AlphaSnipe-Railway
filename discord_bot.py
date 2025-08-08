@@ -611,6 +611,40 @@ async def on_reaction_remove(reaction, user):
     except Exception as e:
         print(f"[sentiment_tracker] Error handling reaction remove: {e}")
 
+# Simplified ETH whale commands for quick management
+import json
+WHALES_ETH_FILE = "whales_eth.json"
+
+def _load_eth():
+    try: return set(json.load(open(WHALES_ETH_FILE)))
+    except: return set()
+
+def _save_eth(s):
+    try: json.dump(list(s), open(WHALES_ETH_FILE, "w"))
+    except: pass
+
+@bot.command()
+async def whaleadd(ctx, addr: str):
+    """Quick add ETH whale: !whaleadd 0x123..."""
+    s = _load_eth(); s.add(addr.lower()); _save_eth(s)
+    await ctx.send(f"✅ Added ETH whale: `{addr}`")
+
+@bot.command()
+async def whaledel(ctx, addr: str):
+    """Quick remove ETH whale: !whaledel 0x123..."""
+    s = _load_eth(); s.discard(addr.lower()); _save_eth(s)
+    await ctx.send(f"✅ Removed ETH whale: `{addr}`")
+
+@bot.command()
+async def whalelist(ctx):
+    """List all tracked ETH whales: !whalelist"""
+    s = _load_eth()
+    if s:
+        whale_list = "\n".join(f"- `{a[:8]}...{a[-6:]}`" for a in sorted(s))
+        await ctx.send(f"🐋 **ETH Whales Tracked** ({len(s)} total):\n{whale_list}")
+    else:
+        await ctx.send("No ETH whales tracked yet.")
+
 def get_bot_instance():
     """Get the bot instance for use in Flask routes"""
     return bot

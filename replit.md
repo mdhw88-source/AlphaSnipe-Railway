@@ -16,6 +16,8 @@ Alpha Sniper Bot is a multi-chain cryptocurrency alert system that combines a Di
 - ✅ **Premium API Integration**: Helius (Solana) and Alchemy (Ethereum) for enhanced security analysis and faster data
 - ✅ **Advanced Risk Detection**: Whale concentration, holder distribution, activity analysis with automated warnings
 - ✅ **Enhanced Analytics Commands**: !analyze command with auto-chain detection for comprehensive token analysis
+- ✅ **Comprehensive Whale Tracking**: Real-time whale movement alerts via Alchemy webhooks with transaction details
+- ✅ **Dual Whale Management Systems**: Both comprehensive (!whale) and simplified (!whaleadd/whaledel/whalelist) commands
 
 # User Preferences
 
