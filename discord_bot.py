@@ -8,18 +8,24 @@ TOKEN = os.getenv("DISCORD_TOKEN")
 CHAN_ENV = os.getenv("DISCORD_CHANNEL_ID") or os.getenv("CHANNEL_ID")
 WEBHOOK_URL = os.getenv("WEBHOOK_URL", "")
 
+# Scanner configuration constants
+MIN_LP = 3000
+MAX_MC = 1_500_000
+MAX_AGE_MIN = 60
+MIN_HOLDERS = 0
+
 def n(x): return "✅" if x else "❌"
 
 async def scanner_loop():
     """Background task to scan for crypto opportunities"""
     await bot.wait_until_ready()
-    print("[diag] Scanner loop started")
+    print(f"[diag] Scanner loop started with criteria: MIN_LP={MIN_LP}, MAX_MC={MAX_MC:,}, MAX_AGE_MIN={MAX_AGE_MIN}, MIN_HOLDERS={MIN_HOLDERS}")
     
     while not bot.is_closed():
         try:
             # This is where you would implement your crypto scanning logic
-            # For now, it's a placeholder that doesn't send alerts
-            print("[diag] Scanner loop iteration (no alerts to send)")
+            # The scanner would use the configuration constants defined above
+            print(f"[diag] Scanner loop iteration (criteria: LP≥{MIN_LP}, MC≤{MAX_MC:,}, age≤{MAX_AGE_MIN}min, holders≥{MIN_HOLDERS})")
             
         except Exception as e:
             print(f"[diag] Scanner loop error: {e}")
