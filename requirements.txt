@@ -7,3 +7,4 @@ werkzeug
 trafilatura
 beautifulsoup4
 trafilatura
+gunicorn

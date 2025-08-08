@@ -44,6 +44,25 @@ app.run(host="0.0.0.0", port=port)
 3. **Health Check**: Make sure your Flask app responds to GET requests on the root path
 4. **Environment Variables**: Verify all required secrets are set in Render dashboard
 
+## Render Gunicorn Error Fix
+
+If you see `gunicorn: command not found`, update your Render service:
+
+**Build Command:**
+```bash
+pip install -r requirements.txt && pip install gunicorn
+```
+
+**Start Command:**
+```bash
+python main.py
+```
+
+**Alternative Start Command (if you prefer Gunicorn):**
+```bash
+gunicorn main:app --bind 0.0.0.0:$PORT
+```
+
 ## Environment Variables Details
 
 ### Required
