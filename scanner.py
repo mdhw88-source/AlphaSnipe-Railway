@@ -12,6 +12,10 @@ MIN_HOLDERS = 0     # (sync with discord_bot.py)
 
 NARRATIVE = re.compile(r".*", re.I)  # Temporarily match all tokens for testing
 
+# Global storage for already seen tokens (persists across scans)
+sent_tokens = set()
+last_reset = time.time()
+
 def _pairs(chain):
     # Dexscreener “latest pairs” by chain
     url = f"{DEX_API}?q={chain}"
@@ -24,10 +28,18 @@ def _pairs(chain):
         return []
 
 def pick_new_pairs():
+    global sent_tokens, last_reset
     results = []
     total_pairs = 0
     filtered_pairs = 0
-    seen = set()  # Reset for each scan to allow fresh alerts
+    seen = set()  # Prevent duplicates within this single scan
+    
+    # Reset sent tokens every hour to allow fresh alerts
+    current_time = time.time()
+    if current_time - last_reset > 3600:  # 1 hour
+        sent_tokens.clear()
+        last_reset = current_time
+        print("[scanner] Cleared sent tokens cache (1 hour passed)")
     
     # Try multiple fresh data sources
     try:
@@ -57,6 +69,15 @@ def pick_new_pairs():
             pair_id = p.get("pairAddress") or p.get("pairCreatedAt")
             if not pair_id or pair_id in seen:
                 continue
+            
+            # Create unique identifier for this token
+            token_name = (p.get("baseToken", {}) or {}).get("name", "")
+            token_symbol = (p.get("baseToken", {}) or {}).get("symbol", "")
+            token_id = f"{token_name}_{token_symbol}".lower().replace(" ", "_")
+            
+            # Skip if we've already sent this token recently
+            if token_id in sent_tokens:
+                continue
 
             age_min = max(0, int((time.time()*1000 - (p.get("pairCreatedAt") or 0)) / 60000))
             liquidity_usd = float(p.get("liquidity", {}).get("usd", 0))
@@ -82,6 +103,7 @@ def pick_new_pairs():
                     continue
 
                 seen.add(pair_id)
+                sent_tokens.add(token_id)  # Mark as sent
                 filtered_pairs += 1
                 print(f"[scanner] ✅ MATCH: {name} {symbol}")
                 

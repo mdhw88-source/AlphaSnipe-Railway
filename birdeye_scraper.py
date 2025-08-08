@@ -91,7 +91,10 @@ def get_coingecko_new_tokens(limit=20):
     Get new tokens from CoinGecko API (recently added)
     """
     try:
-        url = "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_asc&per_page=50&page=1"
+        # Rotate through different pages to get variety
+        import random
+        page = random.randint(1, 5)
+        url = f"https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_asc&per_page=50&page={page}"
         response = requests.get(url, timeout=10)
         
         if response.status_code == 200:
@@ -100,7 +103,7 @@ def get_coingecko_new_tokens(limit=20):
             pairs = []
             for token in data[:limit]:
                 # Only include tokens with small market caps (newer/smaller tokens)
-                if token.get('market_cap', 0) < 5000000:  # Under $5M
+                if token.get('market_cap', 0) < 2000000:  # Under $2M
                     pair = {
                         'chainId': 'ethereum',
                         'pairAddress': f"coingecko_{token.get('id', '')}",
