@@ -1,9 +1,10 @@
-# Railway Deployment Guide
+# Railway/Render Deployment Guide
 
 ## Quick Deploy Steps
 
-1. **Create Railway Project**
-   - Go to railway.app → New Project → Deploy from GitHub → pick your repo
+1. **Create Project**
+   - **Railway**: Go to railway.app → New Project → Deploy from GitHub → pick your repo
+   - **Render**: Go to render.com → New → Web Service → Connect GitHub repo
 
 2. **Configure Environment Variables**
    After the initial build, go to Variables and add:
@@ -15,13 +16,33 @@
    - `SESSION_SECRET` - Flask session secret (generate random string)
 
 3. **Set Start Command**
-   In Settings → Deployments, set the Start Command to:
+   **Railway**: In Settings → Deployments, set the Start Command to:
+   ```
+   python main.py
+   ```
+   
+   **Render**: Set Build Command to `pip install -r requirements.txt` and Start Command to:
    ```
    python main.py
    ```
 
 4. **Database Configuration**
-   Railway will automatically provide a PostgreSQL database. The `DATABASE_URL` environment variable will be set automatically.
+   **Railway**: Automatically provides PostgreSQL database via `DATABASE_URL`
+   **Render**: Add PostgreSQL database addon, `DATABASE_URL` will be set automatically
+
+## Render-Specific 502 Error Fix
+
+If you get a 502 error on Render, it's usually a port binding issue. Your app is correctly configured with:
+```python
+port = int(os.environ.get("PORT", 5000))
+app.run(host="0.0.0.0", port=port)
+```
+
+**Common 502 Solutions:**
+1. **Check Logs**: View deployment logs in Render dashboard for specific errors
+2. **Port Binding**: Ensure your app uses the PORT environment variable (already configured)
+3. **Health Check**: Make sure your Flask app responds to GET requests on the root path
+4. **Environment Variables**: Verify all required secrets are set in Render dashboard
 
 ## Environment Variables Details
 
