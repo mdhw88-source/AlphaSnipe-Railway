@@ -295,6 +295,64 @@ async def paper_pnl(ctx):
     except Exception as e:
         await ctx.send(f"Error getting P/L summary: {e}")
 
+# Sentiment Tracking Commands
+@bot.command(name='sentiment')
+async def sentiment_analysis(ctx, token: str = None):
+    """Show sentiment analysis: !sentiment or !sentiment <token>"""
+    from sentiment_tracker import get_sentiment_command_response
+    
+    try:
+        if token:
+            command = f"!sentiment {token}"
+        else:
+            command = "!sentiment"
+        
+        response = get_sentiment_command_response(command)
+        await ctx.send(response)
+        
+    except Exception as e:
+        await ctx.send(f"Error getting sentiment analysis: {e}")
+
+@bot.event
+async def on_reaction_add(reaction, user):
+    """Track reactions on runner alert messages"""
+    if user.bot:
+        return  # Ignore bot reactions
+    
+    try:
+        from sentiment_tracker import handle_reaction_update
+        message_id = str(reaction.message.id)
+        emoji = str(reaction.emoji)
+        count = reaction.count
+        
+        # Update sentiment tracking
+        success = handle_reaction_update(message_id, emoji, count)
+        if success:
+            print(f"[sentiment_tracker] Updated reaction {emoji} (count: {count}) for message {message_id}")
+        
+    except Exception as e:
+        print(f"[sentiment_tracker] Error handling reaction add: {e}")
+
+@bot.event  
+async def on_reaction_remove(reaction, user):
+    """Track reaction removals on runner alert messages"""
+    if user.bot:
+        return  # Ignore bot reactions
+    
+    try:
+        from sentiment_tracker import handle_reaction_update
+        message_id = str(reaction.message.id)
+        emoji = str(reaction.emoji)
+        count = reaction.count
+        
+        # Update sentiment tracking
+        success = handle_reaction_update(message_id, emoji, count)
+        if success:
+            print(f"[sentiment_tracker] Updated reaction {emoji} (count: {count}) for message {message_id}")
+        
+    except Exception as e:
+        print(f"[sentiment_tracker] Error handling reaction remove: {e}")
+
 def get_bot_instance():
     """Get the bot instance for use in Flask routes"""
     return bot
