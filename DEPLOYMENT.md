@@ -98,6 +98,18 @@ If Discord connection fails:
 - Ensure bot has proper permissions in your Discord server
 - Check bot is invited to the correct server/channel
 
+**6. Audio Module Errors (audioop)**
+If you see `ModuleNotFoundError: No module named 'audioop'`:
+This is a Python 3.13+ compatibility issue with discord.py voice features.
+
+**Quick Fix - Add to Build Command:**
+```bash
+pip install -r requirements.txt && pip install gunicorn && pip install PyNaCl[voice]
+```
+
+**Alternative - Disable Voice Features:**
+Your bot doesn't use voice, so this error won't affect functionality. The text-based alerts will work perfectly.
+
 ## Environment Variables Details
 
 ### Required

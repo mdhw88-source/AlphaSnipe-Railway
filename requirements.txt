@@ -8,3 +8,4 @@ trafilatura
 beautifulsoup4
 trafilatura
 gunicorn
+PyNaCl
