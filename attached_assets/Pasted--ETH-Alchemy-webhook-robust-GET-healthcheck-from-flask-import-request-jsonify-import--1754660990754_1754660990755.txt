@@ -1,0 +1,78 @@
+# --- ETH (Alchemy) webhook: robust + GET healthcheck ---
+from flask import request, jsonify
+import json, time
+
+WHALES_ETH_FILE = "whales_eth.json"
+
+def _load_eth():
+    try: return set(json.load(open(WHALES_ETH_FILE)))
+    except: return set()
+
+def _save_eth(s):
+    try: json.dump(list(s), open(WHALES_ETH_FILE, "w"))
+    except: pass
+
+@app.route("/alchemy", methods=["GET", "POST"])
+def alchemy_webhook():
+    # Health check in browser / for Alchemy "Test URL"
+    if request.method == "GET":
+        return "OK (alchemy)", 200
+
+    try:
+        payload = request.get_json(force=True, silent=True) or {}
+        # log a small snippet to Replit console for debugging
+        print("[alchemy] payload:", json.dumps(payload)[:600])
+
+        # Support multiple shapes Alchemy may send
+        event = payload.get("event") or {}
+        activity = (
+            event.get("activity")
+            or payload.get("activity")
+            or payload.get("events")
+            or []
+        )
+
+        watched = _load_eth()
+        messages = []
+
+        for a in activity if isinstance(activity, list) else []:
+            from_addr = (a.get("fromAddress") or "").lower()
+            to_addr   = (a.get("toAddress") or "").lower()
+
+            # token/amount best-effort
+            asset = (
+                a.get("asset")
+                or (a.get("erc20Metadata") or {}).get("symbol")
+                or "ETH"
+            )
+            value = (
+                a.get("value")
+                or (a.get("rawContract") or {}).get("value")
+                or ""
+            )
+            tx = a.get("hash") or a.get("transactionHash") or ""
+
+            # fire only if a watched address is involved
+            if from_addr in watched or to_addr in watched:
+                direction = "BUY" if to_addr in watched else "SELL"
+                link = f"https://etherscan.io/tx/{tx}" if tx else ""
+                msg = (
+                    f"🐋 **ETH Whale {direction}**\n"
+                    f"Addr: `{to_addr if direction=='BUY' else from_addr}`\n"
+                    f"Asset: {asset}  |  Amount: {value}\n{link}"
+                )
+                messages.append(msg)
+
+        # Send messages to Discord (async-safe)
+        ch = bot.get_channel(CHANNEL_ID)
+        for m in messages:
+            if ch:
+                bot.loop.create_task(ch.send(m))
+            webhook_send(m)
+
+        return jsonify({"ok": True, "count": len(messages)}), 200
+
+    except Exception as e:
+        print("[alchemy error]", e)
+        # Return 200 so Alchemy doesn’t spam retries; include error for logs
+        return jsonify({"ok": False, "error": str(e)}), 200
