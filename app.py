@@ -84,22 +84,45 @@ def alchemy_webhook():
         watched = _load_eth()
         messages = []
 
-        for a in activity if isinstance(activity, list) else []:
+        # Handle both single activity and list of activities
+        activity_list = activity if isinstance(activity, list) else ([activity] if activity else [])
+        
+        for a in activity_list:
+            if not a:  # Skip empty activities
+                continue
+                
             from_addr = (a.get("fromAddress") or "").lower()
             to_addr = (a.get("toAddress") or "").lower()
 
-            # Token/amount best-effort extraction
+            # Token/amount extraction with better fallbacks
             asset = (
-                a.get("asset")
+                a.get("asset") 
                 or (a.get("erc20Metadata") or {}).get("symbol")
+                or (a.get("erc20Metadata") or {}).get("name")
                 or "ETH"
             )
+            
+            # Extract value from various possible locations
             value = (
-                a.get("value")
+                a.get("value") 
+                or a.get("amount")
                 or (a.get("rawContract") or {}).get("value")
+                or (a.get("rawContract") or {}).get("rawValue")
                 or ""
             )
+            
+            # Convert hex values to readable format if needed
+            if isinstance(value, str) and value.startswith("0x"):
+                try:
+                    value = str(int(value, 16))
+                except:
+                    pass
+            
             tx = a.get("hash") or a.get("transactionHash") or ""
+
+            # Only process if we have addresses and they're not empty
+            if not from_addr or not to_addr:
+                continue
 
             # Alert only if a watched address is involved (check both systems)
             if (from_addr in watched or to_addr in watched or 
@@ -109,12 +132,16 @@ def alchemy_webhook():
                 whale_addr = to_addr if direction == "BUY" else from_addr
                 link = f"https://etherscan.io/tx/{tx}" if tx else ""
                 
+                # Format value for display
+                display_value = str(value)[:20] + "..." if len(str(value)) > 20 else str(value)
+                
                 msg = (
                     f"🐋 **ETH Whale {direction}**\n"
                     f"Addr: `{whale_addr[:8]}...{whale_addr[-6:]}`\n"
-                    f"Asset: {asset}  |  Amount: {value}\n{link}"
+                    f"Asset: {asset}  |  Amount: {display_value}\n{link}"
                 )
                 messages.append(msg)
+                print(f"[alchemy] Generated whale alert: {direction} {asset} by {whale_addr[:8]}...")
 
         # Send messages to Discord via webhook
         for m in messages:
@@ -127,6 +154,9 @@ def alchemy_webhook():
         return jsonify({"ok": True, "count": len(messages)}), 200
 
     except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
         print(f"[alchemy error] {e}")
+        print(f"[alchemy error details] {error_details}")
         # Return 200 so Alchemy doesn't spam retries
-        return jsonify({"ok": False, "error": str(e)}), 200
+        return jsonify({"ok": False, "error": str(e), "details": error_details[:500]}), 200
