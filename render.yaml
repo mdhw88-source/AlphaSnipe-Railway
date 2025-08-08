@@ -2,7 +2,7 @@ services:
   - type: web
     name: alpha-sniper-bot
     env: python
-    buildCommand: pip install -r requirements.txt && pip install gunicorn
+    buildCommand: pip install -r requirements.txt && pip install gunicorn PyNaCl==1.5.0
     startCommand: python main.py
     envVars:
       - key: DISCORD_TOKEN

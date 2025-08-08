@@ -77,8 +77,8 @@ Ensure these are set in Render dashboard Environment section:
 - `HELIUS_API_KEY` (Optional - for Solana features)
 
 **2. Service Configuration**
-- Runtime: `Python 3`
-- Build Command: `pip install -r requirements.txt && pip install gunicorn`
+- Runtime: `Python 3.12.6` (set via runtime.txt)
+- Build Command: `pip install -r requirements.txt && pip install gunicorn PyNaCl==1.5.0`
 - Start Command: `python main.py`
 
 **3. Database Setup**
@@ -102,7 +102,12 @@ If Discord connection fails:
 If you see `ModuleNotFoundError: No module named 'audioop'`:
 This is a Python 3.13+ compatibility issue with discord.py voice features.
 
-**Quick Fix - Add to Build Command:**
+**Recommended Build Command (with Python 3.12.6):**
+```bash
+pip install -r requirements.txt && pip install gunicorn PyNaCl==1.5.0
+```
+
+**Alternative with voice extras:**
 ```bash
 pip install -r requirements.txt && pip install gunicorn && pip install PyNaCl[voice]
 ```
@@ -116,7 +121,7 @@ If deployment still fails after adding PyNaCl, try these additional steps:
 1. **Force Clear Cache:** In Render dashboard, go to Settings → Clear Build Cache
 2. **Alternative Build Command:** 
    ```bash
-   pip install --upgrade pip && pip install -r requirements.txt && pip install gunicorn PyNaCl
+   pip install --upgrade pip && pip install -r requirements.txt && pip install gunicorn PyNaCl==1.5.0
    ```
 3. **Check Environment Variables:** Ensure DISCORD_TOKEN and DISCORD_CHANNEL_ID are set
 4. **Monitor Logs:** Watch for successful "Starting server on 0.0.0.0:PORT" message
