@@ -107,17 +107,22 @@ async def alert(ctx, token: str="SIMPS", chain: str="Solana",
 
 @bot.command()
 async def scan(ctx):
-    """Raw test: fetch newest pairs directly from DexScreener (no filters)."""
+    """Raw test: fetch recent pairs via DexScreener search (no filters)."""
     import requests
 
-    hits = []
+    total = 0
     for chain in ["solana", "ethereum"]:
-        url = f"https://api.dexscreener.com/latest/dex/pairs/{chain}"
+        url = f"https://api.dexscreener.com/latest/dex/search?q={chain}"
         try:
             r = requests.get(url, timeout=10, headers={"User-Agent": "Mozilla/5.0"})
             await ctx.send(f"{chain} HTTP {r.status_code}")
+            if r.status_code != 200:
+                continue
+
             data = r.json()
-            pairs = data.get("pairs", [])[:3]  # just first 3
+            pairs = data.get("pairs", [])[:3]   # just show first 3 results
+            total += len(pairs)
+
             for p in pairs:
                 base = (p.get("baseToken") or {})
                 symbol = base.get("symbol") or base.get("name") or "?"
@@ -125,17 +130,19 @@ async def scan(ctx):
                 fdv = p.get("fdv")
                 lp = (p.get("liquidity") or {}).get("usd")
                 link = p.get("url") or p.get("pairUrl") or "N/A"
+
+                mc_txt = "n/a" if not fdv else f"${int(fdv):,}"
+                lp_txt = "n/a" if not lp else f"${int(lp):,}"
+
                 await ctx.send(
                     f"🧪 {chain.title()}: {name} ({symbol})\n"
-                    f"MC: {('n/a' if not fdv else '$'+str(int(fdv)))} | "
-                    f"LP: {('n/a' if not lp else '$'+str(int(lp)))}\n"
+                    f"MC: {mc_txt} | LP: {lp_txt}\n"
                     f"{link}"
                 )
-            hits.extend(pairs)
         except Exception as e:
             await ctx.send(f"{chain} error: {e}")
 
-    await ctx.send(f"🔎 Raw scan returned {len(hits)} total pairs")
+    await ctx.send(f"🔎 Raw scan returned {total} pairs")
 
 def get_bot_instance():
     """Get the bot instance for use in Flask routes"""
