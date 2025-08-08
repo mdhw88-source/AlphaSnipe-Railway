@@ -1,11 +1,13 @@
 # scanner.py
 import time, requests, os, re
+from fresh_pairs_scraper import scrape_fresh_pairs, get_fresh_pairs_enhanced
+from birdeye_scraper import get_combined_fresh_tokens
 
 DEX_API = "https://api.dexscreener.com/latest/dex/search"
 CHAINS = ["solana", "ethereum"]  # Temporary, will be updated to use token profiles
 MIN_LP = 3000       # USD (sync with discord_bot.py)
-MAX_MC = 200_000_000  # Temporarily relaxed for testing (sync with discord_bot.py)
-MAX_AGE_MIN = 999999999    # Temporarily disabled for testing (sync with discord_bot.py)
+MAX_MC = 1_500_000  # Back to original target (sync with discord_bot.py)
+MAX_AGE_MIN = 60    # Fresh pairs should be within 1 hour (sync with discord_bot.py)
 MIN_HOLDERS = 0     # (sync with discord_bot.py)
 
 NARRATIVE = re.compile(r".*", re.I)  # Temporarily match all tokens for testing
@@ -28,10 +30,29 @@ def pick_new_pairs():
     total_pairs = 0
     filtered_pairs = 0
     
-    for chain in CHAINS:
-        pairs = _pairs(chain)
+    # Try multiple fresh data sources
+    try:
+        # First try combined alternative sources (Birdeye, Solscan, CoinGecko)
+        fresh_pairs = get_combined_fresh_tokens(25)
+        if fresh_pairs:
+            print(f"[scanner] Using alternative sources: {len(fresh_pairs)} pairs")
+            pairs_to_process = [('fresh', fresh_pairs)]
+        else:
+            # Fallback to DexScreener scraper
+            fresh_pairs = get_fresh_pairs_enhanced()
+            if fresh_pairs:
+                print(f"[scanner] Using DexScreener scraper: {len(fresh_pairs)} pairs")
+                pairs_to_process = [('fresh', fresh_pairs)]
+            else:
+                print("[scanner] All fresh sources failed, using API")
+                pairs_to_process = [(chain, _pairs(chain)) for chain in CHAINS]
+    except Exception as e:
+        print(f"[scanner] Fresh sources failed: {e}, using API")
+        pairs_to_process = [(chain, _pairs(chain)) for chain in CHAINS]
+    
+    for source, pairs in pairs_to_process:
         total_pairs += len(pairs)
-        print(f"[scanner] {chain}: fetched {len(pairs)} pairs")
+        print(f"[scanner] {source}: fetched {len(pairs)} pairs")
         
         for p in pairs:
             pair_id = p.get("pairAddress") or p.get("pairCreatedAt")
@@ -67,7 +88,7 @@ def pick_new_pairs():
                 
                 # craft alert data
                 res = {
-                    "chain": chain.title(),
+                    "chain": p.get("chainId", source).title(),
                     "name": name or symbol,
                     "symbol": symbol,
                     "mc": f"${int(fdv):,}",

@@ -4,3 +4,6 @@ flask
 flask-sqlalchemy
 sqlalchemy
 werkzeug
+trafilatura
+beautifulsoup4
+trafilatura
